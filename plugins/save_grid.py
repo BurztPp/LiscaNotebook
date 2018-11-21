@@ -16,6 +16,9 @@ import sys
 import time
 import json 
 
+from roi import RectRoi
+from roi import ContourRoi
+
 
 my_id = "grid_to_json_saver"
 
@@ -44,57 +47,47 @@ def conf(d, *_, **__):
 
 
 def run(d, *_, **__):
+    print(RectRoi.key())
     path = d[my_id]["_path"]
     grids = d[""]["stack"].rois
-#    params = grids["stack"].rois.parameters[]
-#    name = grids["name"][""]
-#    parameters = grids["parameters"][""]
-#    if self.i_frame in self.stack.rois:
-#        roi_key = self.i_frame
-#    elif Ellipsis in self.stack.rois:
-#        roi_key = Ellipsis
-#    else:
-#        return
-#    labeldict = {}
-#    cornerdict = {}
-#    f=open("/home/v/Viraj.Nistane/hiwi_raedler/pyama/out/grid_out_f{:d}_{}.txt".format(i+1,time.strftime("%Y%m%d-%H%M%S")),"w")
-#    f.write("name = %s")
-#    f.close()
-
-    for i in grids[Ellipsis]:
-#        labeldict["%s"%(i)]=i.label
-        corns=i.corners.tolist()
-        f=open(os.path.join(path,"grid_out_xxtest_{}.txt".format(time.strftime("%Y%m%d-%H%M%S"))),"a")
-        f.write(json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4))
-        f.close()
-        
-    
-    
-    
-    
-#    path = d[my_id]["_path"]
-#    intensities = d[""]["integrated_intensity"]
-#    n_channels, n_frames = intensities.shape
-#    for iCh in range(n_channels):
-#        int_tab = np.empty((n_frames, 1 + len(intensities[iCh, 0])))
-#        int_tab[:,0] = range(n_frames)
-#        for iFr in range(n_frames):
-#            for idx, entry in enumerate(intensities[iCh,iFr]):
-#                if idx+1 >= int_tab.shape[1]:
-#                    print("Found {} ROIs in frame {}, expected {}, ignoring rest.".format(len(intensities[iCh,0]), iFr, int_tab.shape[1])) #DEBUG
-#                    break
-#                int_tab[iFr, idx+1] = entry
-#        outname = os.path.join(path, "integ_intensity_c{:d}_{}.csv".format(iCh+1, time.strftime("%Y%m%d-%H%M%S")))
-#        np.savetxt(outname, int_tab, fmt='%.7e', delimiter=',')
-#        print("Saved intensities to: {}".format(outname))
-#
-#
-#
-#
-#
-#
-
-
+    for key in grids:
+#        if type(key) is not str:
+#            try:
+#                RectRoi[str(key)] = RectRoi[key]
+#            except:
+#                try:
+#                    RectRoi[repr(key)] = RectRoi[key]
+#                except:
+#                    pass
+##                  del RectRoi[key]
+#        for key in RectRoi.key():
+#            if type(key) is not str:
+#                try:
+#                    RectRoi[str(key)] = RectRoi[key]
+#                except:
+#                    try:
+#                        RectRoi[repr(key)] = RectRoi[key]
+#                    except:
+#                        pass
+#                   del RectRoi[key]
+        if key == RectRoi.key():
+            corndict = {}
+            for i in grids[key][Ellipsis]:
+                corns=i.corners.tolist()
+                corndict[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
+                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
+                f.write(json.dumps({"(%s)"%(repr(key)):corndict}, sort_keys=True, indent=4, separators=(',', ':')))
+                f.close()
+#        elif key == ContourRoi.key():
+#            corndict2 = {}
+#            for i in grids[key][Ellipsis]:
+#                corns=i.corners.tolist()
+#                corndict2[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
+#                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
+#                f.write(json.dumps({"(%s,%s)"%(key[0],key[1]):corndict2}, sort_keys=True, indent=4, separators=(',', ':')),'\n')
+#                f.close()
+        else:
+            raise TypeError("incompatible ROI type")
 
 
 
