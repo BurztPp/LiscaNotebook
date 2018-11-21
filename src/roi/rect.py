@@ -1,14 +1,18 @@
+from .base import Roi
+from .collection import RoiCollection
 from listener import Listeners
-import math
 import numpy as np
 import skimage.draw as skid
 import tkinter as tk
-import tkinter.ttk as ttk
+
+__version__ = "0.1"
 
 UNIT_px = 'px'
 UNIT_µm = 'µm'
 TYPE_RECT = 'rect'
 TYPE_SQUARE = 'square'
+TYPES = {TYPE_RECT, TYPE_SQUARE}
+GLOBAL_FRAME = Ellipsis
 
 PAD_COLUMN_SEP = 20
 RED_FLASH_MS = 300
@@ -24,10 +28,6 @@ POS_LEFT   = 0b1000
 POS_RIGHT  = 0b0100
 POS_TOP    = 0b0010
 POS_BOTTOM = 0b0001
-
-
-def new_roi_adjuster(sv):
-    return RoiAdjuster(sv)
 
 
 def float2str(f, var=None):
@@ -97,10 +97,17 @@ def flash_red(widget):
     widget.after(RED_FLASH_MS, lambda:widget.config(background="white"))
 
 
-class RoiAdjuster:
+class RectRoiGridAdjuster:
     def __init__(self, sv, props=None):
         # Get StackViewer-related content
-        self.stack = sv.stack
+        stack = sv.stack
+        #self.stack = sv.stack
+        self.roicol = stack.get_rois(RectRoi.key())
+        if self.roicol is None:
+            self.roicol = RoiCollection(RectRoi.key(),
+                                        name="RectRoi",
+                                        color="yellow")
+            stack.new_roi_collection(self.roicol)
 
         # Define control/logic variables
         self.is_closing = False
@@ -115,27 +122,27 @@ class RoiAdjuster:
         self._height = 55
         self._pad_x = 82
         self._pad_y = 82
-        self._pivot_x = self.stack.width / 2
-        self._pivot_y = self.stack.height / 2
+        self._pivot_x = stack.width / 2
+        self._pivot_y = stack.height / 2
         self._angle = .5
-        self._max_x = self.stack.width - 1
-        self._max_y = self.stack.height - 1
+        self._max_x = stack.width - 1
+        self._max_y = stack.height - 1
+        self._type_roi = TYPE_SQUARE
+        if self._width != self._height or self._pad_x != self._pad_y:
+            self._type_roi = TYPE_RECT
 
         # Load grid properties from argument or from Stack
         if props is None:
             try:
-                roi_props = self.stack.get_rois(Ellipsis)[0].props
+                #roi_props = stack.get_rois(GLOBAL_FRAME)[0].props
+                #roi_props = stack.get_rois(RectRoi.key()).parameters
+                roi_props = self.roicol.parameters
             except (AttributeError, TypeError):
                 roi_props = None
             if roi_props is not None:
                 props = roi_props
         if props is not None:
             self._apply_props(props)
-
-        # Determine whether to use rectangular or square ROIs
-        init_roi_type = TYPE_SQUARE
-        if self._width != self._height or self._pad_x != self._pad_y:
-            init_roi_type = TYPE_RECT
 
         # Set up window
         self.root = tk.Toplevel(sv.root)
@@ -149,7 +156,7 @@ class RoiAdjuster:
         self.var_unit = tk.StringVar(self.root, value=UNIT_px)
         self.var_unit_px = tk.StringVar(self.root, value=1)
         self.var_unit_µm = tk.StringVar(self.root, value=1)
-        self.var_type_roi = tk.StringVar(self.root, value=init_roi_type)
+        self.var_type_roi = tk.StringVar(self.root, value=self._type_roi)
         self.var_offset_x = tk.StringVar(self.root, value=self._offset_x)
         self.var_offset_y = tk.StringVar(self.root, value=self._offset_y)
         self.var_width = tk.StringVar(self.root, value=self._width)
@@ -260,9 +267,9 @@ class RoiAdjuster:
         self.update_roi_type()
 
         # Initialize visual ROI adjustment
-        vis_roi_adj = VisualRoiAdjuster(sv, self)
-        self.cleanup = vis_roi_adj.cleanup
-        vis_roi_adj.smudge()
+        vis_grid_adj = VisualRectRoiGridAdjuster(sv, self)
+        self.cleanup = vis_grid_adj.cleanup
+        vis_grid_adj.smudge()
 
 
     def close(self, *_):
@@ -566,7 +573,7 @@ class RoiAdjuster:
 
     @roi_type.setter
     def roi_type(self, type_):
-        if type_ == TYPE_RECT or type_ == TYPE_SQUARE:
+        if type_ in TYPES:
             self.var_type_roi.set(type_)
         else:
             raise ValueError(f"Unknown ROI type: {type_}")
@@ -723,6 +730,7 @@ class RoiAdjuster:
                 "pivot_y": self._pivot_y,
                 "off_x":   self._offset_x,
                 "off_y":   self._offset_y,
+                "type":    self.roi_type,
             }
 
 
@@ -744,7 +752,9 @@ class RoiAdjuster:
         props = self.props
         for r in self.span():
             roi_list.append(RectRoi(r, props))
-        self.stack.set_rois(roi_list, "rect")
+        #self.stack.set_rois(roi_list, replace=True)
+        self.roicol[GLOBAL_FRAME] = roi_list
+        self.roicol.parameters = self.props
         self._notify_listeners()
 
 
@@ -755,7 +765,7 @@ class RoiAdjuster:
         is likely to result in a corrupted internal state.
 
         :param props: dictionary of desired grid parameters
-        :type props: dict, such as the :py:attr:`RoiAdjuster.props`
+        :type props: dict, such as the :py:attr:`RectRoiGridAdjuster.props`
         """
         width = props.get("width")
         if width is not None and width >= MIN_ROI_SIZE:
@@ -801,6 +811,10 @@ class RoiAdjuster:
         if off_y is not None:
             self._offset_y = off_y
 
+        type_ = props.get("type")
+        if type_ is not None:
+            self._type_roi = type_
+
 
 def span_rois(width, height, pad_x, pad_y, max_x, max_y, angle=0, pivot_x=0, pivot_y=0, off_x=0, off_y=0, canvas=None):
     """Calculate the coordinates of the ROI grid sites.
@@ -830,7 +844,7 @@ def span_rois(width, height, pad_x, pad_y, max_x, max_y, angle=0, pivot_x=0, piv
     :param canvas: (only for debugging) canvas for drawing debug information
     :type canvas: :py:class:`tkinter.Canvas`
     :return: the generated ROIs
-    :rtype: list of :py:class:`RectRoi`
+    :rtype: list of 4-to-2 :py:class:`np.array`
     """
     # Set up function for ROI rotation
     trans_fun = make_transformation(angle, x_new=pivot_x, y_new=pivot_y)
@@ -1081,7 +1095,7 @@ def make_limit_check(limits):
     return check
 
 
-class RectRoi:
+class RectRoi(Roi):
     """Holds information of a ROI.
 
     :param polygon: corner coordinates (in pixels) of the ROI
@@ -1105,7 +1119,7 @@ class RectRoi:
         ``RectRoi`` and should not be changed.
 
     ``label``
-        A freely usable description of the ROI, preferably as a string.
+        A freely usable description of the ROI as string.
 
     ``coords``
         The coordinates of all pixels within the ROI, represented as a
@@ -1135,7 +1149,15 @@ class RectRoi:
         of the ``coords``. Querying this value involves calculating
         the ``coords``.
     """
-    def __init__(self, polygon, props=None, inverted=False):
+    type_id = "rect"
+    version = "0.1"
+    adjuster = RectRoiGridAdjuster
+
+    @classmethod
+    def key(cls):
+        return (cls.type_id, cls.version)
+
+    def __init__(self, polygon, props=None, inverted=False, label=None):
         if inverted:
             self.corners = polygon.copy()
         else:
@@ -1143,7 +1165,7 @@ class RectRoi:
         self.props = props
         self._coords = None
         self._perimeter = None
-        self.label = None
+        self.label = label
 
     @property
     def coords(self):
@@ -1172,13 +1194,13 @@ class RectRoi:
         return self.coords[:,1]
 
 
-class VisualRoiAdjuster:
+class VisualRectRoiGridAdjuster:
     """Allow for interactive grid adjustment by mouse.
 
     :param sv: The stack viewer to connect
     :type: :py:class:`StackViewer`
     :param ra: The roi adjuster to connect
-    :type: :py:class:`RoiAdjuster`
+    :type: :py:class:`RectRoiGridAdjuster`
     """
     def __init__(self, sv, ra):
         self.sv = sv
@@ -1192,15 +1214,15 @@ class VisualRoiAdjuster:
         self.operation_has_pad_x = None
         self.operation_has_pad_y = None
 
-
     def smudge(self):
+        """Create mouse bindings for canvas"""
         self.canvas.bind("<Motion>", self.mouse_moved)
         self.canvas.bind("<Leave>", self.mouse_left)
         self.canvas.bind("<Button-1>", self.mouse_clicked)
         self.canvas.bind("<ButtonRelease-1>", self.mouse_released)
 
-
     def cleanup(self):
+        """Unbind mouse bindings of canvas"""
         # Prevent double execution
         if self.is_cleaning_up:
             return
@@ -1213,11 +1235,9 @@ class VisualRoiAdjuster:
         self.canvas.unbind("<ButtonRelease-1>")
         self.canvas.config(cursor="")
 
-
     def mouse_clicked(self, evt):
         self.is_mouse_down = True
         self.prev_mouse_position = np.array([[evt.x, evt.y]], dtype=np.float)
-
 
     def mouse_released(self, *_):
         self.is_mouse_down = False
@@ -1226,14 +1246,12 @@ class VisualRoiAdjuster:
         self.operation_has_pad_x = None
         self.operation_has_pad_y = None
 
-
     def mouse_left(self, *_):
         self.canvas.delete("roi_draft")
         self.canvas.config(cursor="")
 
-
     def mouse_moved(self, evt):
-        print(f"mouse moved to: ({evt.x :3d}|{evt.y :3d})") #DEBUG
+        #print(f"mouse moved to: ({evt.x :3d}|{evt.y :3d})") #DEBUG
 
         # Set up transformation into grid system
         props = self.ra.props
@@ -1357,8 +1375,6 @@ class VisualRoiAdjuster:
                 self.ra.offset_y += m_y
 
 
-
-
     def mouse_cursor_inside(self, position=None):
         """Set cursor appearance according to position inside grid site
 
@@ -1426,8 +1442,8 @@ class VisualRoiAdjuster:
         cross2 = trafo(cross2, inverse=True)
 
         # DEBUG
-        print(f"\tx: {is_inside_x}  {cross1[0,0]:4.0f} {cross1[1,0]:4.0f}")
-        print(f"\ty: {is_inside_y}  {cross1[0,1]:4.0f} {cross1[1,1]:4.0f}")
+        #print(f"\tx: {is_inside_x}  {cross1[0,0]:4.0f} {cross1[1,0]:4.0f}")
+        #print(f"\ty: {is_inside_y}  {cross1[0,1]:4.0f} {cross1[1,1]:4.0f}")
 
         # Get position-dependent color
         if is_inside_x and is_inside_y:
