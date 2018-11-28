@@ -47,28 +47,43 @@ def conf(d, *_, **__):
 
 
 def run(d, *_, **__):
-    print(RectRoi.key())
     path = d[my_id]["_path"]
     grids = d[""]["stack"].rois
+    jsonarr = []
+    '''
+    The desired structure of json file for the grids is an array consisting of several objects identified by the key (tuple of type and version of grid).
+    The ROIs are dictionary with the frame number as keys and each of this frame key is associated with another dictionary with the corners of the ROI.
+    '''
     for key in grids:
         if key == RectRoi.key():
-            corndict = {}
-            for i in grids[key][Ellipsis]:
-                corns=i.corners.tolist()
-                corndict[i] = json.dumps({"%s"%(repr(i.label)):repr(corns)}, sort_keys=True, indent=4, separators=(',', ':'))
-                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
-                f.write(json.dumps({"(%s)"%(repr(key)):repr(corndict)}, sort_keys=True, indent=4, separators=(',', ':')))
-                f.close()
+            framedict = {}
+            for frame in grids[key]:
+                corndict = {}
+                num = 1
+                for i in grids[key][frame]:
+                    params = i.props
+                    corns=i.corners.tolist()
+                    lab = i.label
+                    corndict["%s_%s"%(lab,num)] = corns
+                    num = num + 1
+                framedict["%s"%(frame)] = corndict
+                jsonarr.append(json.loads(json.dumps({"Type":key[0],"Version":key[1],"parameters":params,"rois":framedict}, sort_keys=False, indent=4, separators=(',', ':'))))
         elif key == ContourRoi.key():
-            corndict2 = {}
-            for i in grids[key][Ellipsis]:
-                corns=i.corners.tolist()
-                corndict2[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
-                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
-                f.write(json.dumps({"(%s,%s)"%(key[0],key[1]):corndict2}, sort_keys=True, indent=4, separators=(',', ':')),'\n')
-                f.close()
+            framedict2 = {}
+            for frame in grids[key]:
+                corndict2 = {}
+                num2 = 1
+                for i in grids[key][frame]:
+                    corns=i.corners.tolist()
+                    lab = i.label
+                    corndict2["%s_%s"%(lab,num2)] = corns
+                    num2 = num2 + 1
+                framedict2["%s"%(frame)] = corndict2
+                jsonarr.append(json.loads(json.dumps({"Type":key[0],"Version":key[1],"rois":framedict2}, sort_keys=False, indent=4, separators=(',', ':'))))
         else:
             raise TypeError("incompatible ROI type")
+    with open(os.path.join(path,"grid_out_{}.json".format(time.strftime("%d%m%Y-%H%M%S"))),"a") as f:
+        f.write(json.dumps(jsonarr, indent=4, sort_keys=False))
 
 
 
