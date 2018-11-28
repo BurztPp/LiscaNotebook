@@ -51,41 +51,22 @@ def run(d, *_, **__):
     path = d[my_id]["_path"]
     grids = d[""]["stack"].rois
     for key in grids:
-#        if type(key) is not str:
-#            try:
-#                RectRoi[str(key)] = RectRoi[key]
-#            except:
-#                try:
-#                    RectRoi[repr(key)] = RectRoi[key]
-#                except:
-#                    pass
-##                  del RectRoi[key]
-#        for key in RectRoi.key():
-#            if type(key) is not str:
-#                try:
-#                    RectRoi[str(key)] = RectRoi[key]
-#                except:
-#                    try:
-#                        RectRoi[repr(key)] = RectRoi[key]
-#                    except:
-#                        pass
-#                   del RectRoi[key]
         if key == RectRoi.key():
             corndict = {}
             for i in grids[key][Ellipsis]:
                 corns=i.corners.tolist()
-                corndict[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
+                corndict[i] = json.dumps({"%s"%(repr(i.label)):repr(corns)}, sort_keys=True, indent=4, separators=(',', ':'))
                 f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
-                f.write(json.dumps({"(%s)"%(repr(key)):corndict}, sort_keys=True, indent=4, separators=(',', ':')))
+                f.write(json.dumps({"(%s)"%(repr(key)):repr(corndict)}, sort_keys=True, indent=4, separators=(',', ':')))
                 f.close()
-#        elif key == ContourRoi.key():
-#            corndict2 = {}
-#            for i in grids[key][Ellipsis]:
-#                corns=i.corners.tolist()
-#                corndict2[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
-#                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
-#                f.write(json.dumps({"(%s,%s)"%(key[0],key[1]):corndict2}, sort_keys=True, indent=4, separators=(',', ':')),'\n')
-#                f.close()
+        elif key == ContourRoi.key():
+            corndict2 = {}
+            for i in grids[key][Ellipsis]:
+                corns=i.corners.tolist()
+                corndict2[i] = json.dumps({"%s"%(i.label):corns}, sort_keys=True, indent=4, separators=(',', ':'))
+                f=open(os.path.join(path,"grid_out_{}.txt".format(time.strftime("%d%m%Y-%H%M%S"))),"a")
+                f.write(json.dumps({"(%s,%s)"%(key[0],key[1]):corndict2}, sort_keys=True, indent=4, separators=(',', ':')),'\n')
+                f.close()
         else:
             raise TypeError("incompatible ROI type")
 
