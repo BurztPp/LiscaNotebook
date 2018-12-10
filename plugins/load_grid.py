@@ -76,7 +76,7 @@ def run(d, *_, **__):
     newins.parameters = newparam
     s.new_roi_collection(newins)
 #    sv2 = StackViewer._update_stack_properties
-#    print(newkey,newparam)
+#    print(roilist)
 
 
 
