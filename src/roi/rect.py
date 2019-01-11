@@ -98,6 +98,8 @@ def flash_red(widget):
     widget.after(RED_FLASH_MS, lambda:widget.config(background="white"))
 
 
+
+
 class RectRoiGridAdjuster:
     def __init__(self, sv, props=None):
         # Get StackViewer-related content
