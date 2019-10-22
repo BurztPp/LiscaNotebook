@@ -1,4 +1,4 @@
-#from numba import jit
+from numba import jit
 import numpy as np
 import skimage.measure as skmeas
 from .stack import Stack
@@ -78,6 +78,7 @@ class Tracker:
                 this_props[p.label] = p
             self.props[fr] = this_props
 
+    #@jit
     def track(self):
         """Track the cells through the stack."""
         # `traces` holds for each cell a list with the labels for each frame.
@@ -114,12 +115,12 @@ class Tracker:
                 # Compare with regions of previous frame
                 # Check bounding boxes and then coordinates for overlap.
                 # Then check if parent is valid (area, edge).
-                min_y, min_x, max_y, max_x = p.bbox
+                p_min_y, p_min_x, p_max_y, p_max_x = p.bbox
                 parents = []
                 is_select = True
                 for q in self.props[fr-1].values():
                     q_min_y, q_min_x, q_max_y, q_max_x = q.bbox
-                    if q_min_y >= max_y or q_max_y <= min_y or q_min_x >= max_x or q_max_x <= min_x:
+                    if q_min_y >= p_max_y or q_max_y <= p_min_y or q_min_x >= p_max_x or q_max_x <= p_min_x:
                         continue
                     overlap = False
                     for row in p.coords:
@@ -139,9 +140,9 @@ class Tracker:
                     if q_check & self.IS_TOO_SMALL:
                         parents.append(dict(label=q.label, large=False, small=True, area=q.area))
                     elif q_check & self.IS_TOO_LARGE:
-                        parents.append(dict(label=q.label, large=True, small=False))
+                        parents.append(dict(label=q.label, large=True, small=False, area=q.area))
                     else:
-                        parents.insert(0, dict(label=q.label, large=False, small=False))
+                        parents.insert(0, dict(label=q.label, large=False, small=False, area=q.area))
 
                 # Check for parents
                 if is_select is None:
@@ -196,6 +197,7 @@ class Tracker:
                 self.traces.append(tr)
                 self.traces_selection.append(traces_selection[i])
 
+    #@jit
     def _check_props(self, props, edges=True):
         """Check if given regionprops are valid.
 
