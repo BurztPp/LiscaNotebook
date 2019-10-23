@@ -5,6 +5,47 @@ from .stack import Stack
 
 import time
 
+def intercalation_iterator(n):
+    """Generator function for iterating from both ends in `n` steps"""
+    n = int(n)
+    if n <= 0:
+        return
+    elif n % 2:
+        yield 0
+        i1 = n - 1
+        step1 = -2
+        stop1 = 0
+        i2 = 1
+        step2 = 2
+    else:
+        i1 = 0
+        step1 = 2
+        stop1 = n
+        i2 = n - 1
+        step2 = -2
+    while i1 != stop1:
+        yield i1
+        yield i2
+        i1 += step1
+        i2 += step2
+
+def check_coordinate_overlap(coords1, coords2):
+    """Performantly check two coordinate sets for overlap"""
+    uy = np.intersect1d(coords1[:, 0], coords2[:, 0])
+    coords1 = coords1[np.isin(coords1[:, 0], uy), :]
+    coords2 = coords2[np.isin(coords2[:, 0], uy), :]
+
+    ux = np.intersect1d(coords1[:, 1], coords2[:, 1])
+    coords1 = coords1[np.isin(coords1[:, 1], ux), :]
+    coords2 = coords2[np.isin(coords2[:, 1], ux), :]
+
+    for iy in intercalation_iterator(uy.size):
+        y = uy[iy]
+        if np.any(np.isin(coords1[coords1[:, 0] == y, 1], coords2[coords2[:, 0] == y, 1])):
+            return True
+    return False
+
+
 class Tracker:
     """Performs tracking in multithreaded fashion.
     
@@ -126,31 +167,6 @@ class Tracker:
         bb['check'] = bb['check'][idx]
         return bb
 
-    @staticmethod
-    def intercalation_iterator(n):
-        """Generator function for iterating from both ends in `n` steps"""
-        n = int(n)
-        if n <= 0:
-            return
-        elif n % 2:
-            yield 0
-            i1 = n - 1
-            step1 = -2
-            stop1 = 0
-            i2 = 1
-            step2 = 2
-        else:
-            i1 = 0
-            step1 = 2
-            stop1 = n
-            i2 = n - 1
-            step2 = -2
-        while i1 != stop1:
-            yield i1
-            yield i2
-            i1 += step1
-            i2 += step2
-
     #@jit
     def track(self):
         """Track the cells through the stack."""
@@ -200,8 +216,8 @@ class Tracker:
             for i in range(overlaps.shape[0]):
                 js = np.flatnonzero(overlaps[i,:])
 
-                if fr < 5:
-                    print(f"{fr :3d}: cell {i :3d} has {len(js)} parents") #DEBUG
+                #if fr < 5:
+                #    print(f"{fr :3d}: cell {i :3d} has {len(js)} parents") #DEBUG
 
                 # Continue if ROI has no parent
                 if js.size == 0:
@@ -210,6 +226,9 @@ class Tracker:
                 li = bbox_new['labels'][i]
                 pi = bbox_new['props'][i]
                 ci = pi.coords
+
+                cki = self._check_props(pi)
+                bbox_new['check'][i] = cki
 
                 parents = []
                 is_select = True
@@ -220,42 +239,39 @@ class Tracker:
                     #breakpoint() #DEBUG
                     pj = bbox_old['props'][j]
                     cj = pj.coords
-                    for ir in self.intercalation_iterator(ci.shape[0]):
-                        #breakpoint() #DEBUG
-                        if np.any(np.all(cj == ci[None, ir, :], axis=1)):
-                            print(f"{fr :3d}: cell {i :3d} has parent {j :3d}") #DEBUG
-                            break
-                    else:
-                        print(f"{fr :3d}: cell {i :3d} does not have {j :3d} as parent") #DEBUG
+                    if not check_coordinate_overlap(ci, cj):
+                        #print(f"{fr :3d}: cell {i :3d} has not parent {j :3d}") #DEBUG
                         continue
+                    #else:
+                    #    print(f"{fr :3d}: cell {i :3d} has parent {j :3d}") #DEBUG
 
                     ckj = bbox_old['check'][j]
                     if ckj & self.IS_UNCHECKED:
-                        print("parent unchecked") #DEBUG
+                        #print("parent unchecked") #DEBUG
                         continue
                     elif ckj & self.IS_AT_EDGE:
                         if ckj & self.IS_TOO_SMALL:
-                            print("parent too small & at edge") #DEBUG
+                            #print("parent at edge & too small") #DEBUG
                             continue
                         else:
                             is_select = None
-                            print("parent too small") #DEBUG
+                            #print("parent at edge") #DEBUG
                             break
                     if ckj & self.IS_TOO_SMALL:
-                        print("parent too small") #DEBUG
+                        #print("parent too small") #DEBUG
                         parents.append(dict(label=pj.label, large=False, small=True, area=pj.area))
                     elif ckj & self.IS_TOO_LARGE:
-                        print("parent too large") #DEBUG
+                        #print("parent too large") #DEBUG
                         parents.append(dict(label=pj.label, large=True, small=False, area=pj.area))
                     else:
-                        print("parent good") #DEBUG
+                        #print("parent good") #DEBUG
                         parents.insert(0, dict(label=pj.label, large=False, small=False, area=pj.area))
 
                 # Check for parents
                 if is_select is None:
                     pass
                 elif not parents:
-                    print("orphan") #DEBUG
+                    #print("orphan") #DEBUG
                     continue
                 elif len(parents) == 1:
                     parent = 0
@@ -284,19 +300,19 @@ class Tracker:
                     continue
                 if traces_selection[parent_idx] is None:
                     # Ignore traces with "bad ancestors"
-                    print(f"{fr :3d} cell {i :3d} has bad ancestor") #DEBUG
+                    #print(f"{fr :3d} cell {i :3d} has bad ancestor") #DEBUG
                     continue
                 elif parent_idx in new_idx.values():
                     # Eliminate siblings
                     traces_selection[parent_idx] = None
-                    print(f"{fr :3d} cell {i :3d} has siblings") #DEBUG
+                    #print(f"{fr :3d} cell {i :3d} has siblings") #DEBUG
                 else:
                     # Register this region as child of parent
                     new_idx[li] = parent_idx
                     traces[parent_idx].append(li)
                     if parent['large'] or parent['small']:
                         traces_selection[parent_idx] = False
-                    print(f"{fr :3d}: cell {i :3d} is child of {parent_idx :3d}") #DEBUG
+                    #print(f"{fr :3d}: cell {i :3d} is child of {parent_idx :3d}") #DEBUG
             last_idx = new_idx
             #breakpoint() #DEBUG
             print("Frame {:03d}: {:.4f}s".format(fr + 1, time.time() - tic)) #DEBUG
