@@ -1,4 +1,3 @@
-from numba import jit
 import numpy as np
 import skimage.measure as skmeas
 from .stack import Stack
@@ -30,18 +29,21 @@ def intercalation_iterator(n):
         i2 += step2
 
 def check_coordinate_overlap(coords1, coords2):
-    """Performantly check two coordinate sets for overlap"""
+    """Performantly check two coordinate sets for overlap
+
+    Arguments:
+        Both `coords1` and `coords2` are n-by-2 numpy arrrays.
+        Each line cooresponds to one pixel.
+        The first column is the vertical coordinate, and
+        the second column is the horizontal coordinate.
+
+    Returns:
+        True if the coordinate sets overlap, else False.
+    """
     uy = np.intersect1d(coords1[:, 0], coords2[:, 0])
-    coords1 = coords1[np.isin(coords1[:, 0], uy), :]
-    coords2 = coords2[np.isin(coords2[:, 0], uy), :]
-
-    ux = np.intersect1d(coords1[:, 1], coords2[:, 1])
-    coords1 = coords1[np.isin(coords1[:, 1], ux), :]
-    coords2 = coords2[np.isin(coords2[:, 1], ux), :]
-
     for iy in intercalation_iterator(uy.size):
         y = uy[iy]
-        if np.any(np.isin(coords1[coords1[:, 0] == y, 1], coords2[coords2[:, 0] == y, 1])):
+        if np.intersect1d(coords1[coords1[:, 0] == y, 1], coords2[coords2[:, 0] == y, 1]).size:
             return True
     return False
 
@@ -135,11 +137,6 @@ class Tracker:
             labels[i] = lbl
             props[i] = p
             y_min[i], x_min[i], y_max[i], x_max[i] = p.bbox
-            #y0, x0, y1, x1 = p.bbox
-            #y_min[i] = y0
-            #x_min[i] = x0
-            #y_max[i] = y1
-            #x_max[i] = x1
             i += 1
         return {
                 'n': n,
@@ -167,7 +164,6 @@ class Tracker:
         bb['check'] = bb['check'][idx]
         return bb
 
-    #@jit
     def track(self):
         """Track the cells through the stack."""
         # `traces` holds for each cell a list with the labels for each frame.
@@ -180,6 +176,7 @@ class Tracker:
         # Initialization for first frame
         if self.progress_fcn is not None:
             self.progress_fcn(msg="Tracking cells", current=1, total=self.n_frames)
+        tic0 = time.time() #DEBUG
         tic = time.time() #DEBUG
         bbox_new = self.get_bboxes(0)
         for i in range(bbox_new['n']):
@@ -216,9 +213,6 @@ class Tracker:
             for i in range(overlaps.shape[0]):
                 js = np.flatnonzero(overlaps[i,:])
 
-                #if fr < 5:
-                #    print(f"{fr :3d}: cell {i :3d} has {len(js)} parents") #DEBUG
-
                 # Continue if ROI has no parent
                 if js.size == 0:
                     continue
@@ -236,42 +230,31 @@ class Tracker:
                 # Compare with regions of previous frame
                 # Check if parent is valid (area, edge)
                 for j in js:
-                    #breakpoint() #DEBUG
                     pj = bbox_old['props'][j]
                     cj = pj.coords
                     if not check_coordinate_overlap(ci, cj):
-                        #print(f"{fr :3d}: cell {i :3d} has not parent {j :3d}") #DEBUG
                         continue
-                    #else:
-                    #    print(f"{fr :3d}: cell {i :3d} has parent {j :3d}") #DEBUG
 
                     ckj = bbox_old['check'][j]
                     if ckj & self.IS_UNCHECKED:
-                        #print("parent unchecked") #DEBUG
                         continue
                     elif ckj & self.IS_AT_EDGE:
                         if ckj & self.IS_TOO_SMALL:
-                            #print("parent at edge & too small") #DEBUG
                             continue
                         else:
                             is_select = None
-                            #print("parent at edge") #DEBUG
                             break
                     if ckj & self.IS_TOO_SMALL:
-                        #print("parent too small") #DEBUG
                         parents.append(dict(label=pj.label, large=False, small=True, area=pj.area))
                     elif ckj & self.IS_TOO_LARGE:
-                        #print("parent too large") #DEBUG
                         parents.append(dict(label=pj.label, large=True, small=False, area=pj.area))
                     else:
-                        #print("parent good") #DEBUG
                         parents.insert(0, dict(label=pj.label, large=False, small=False, area=pj.area))
 
                 # Check for parents
                 if is_select is None:
                     pass
                 elif not parents:
-                    #print("orphan") #DEBUG
                     continue
                 elif len(parents) == 1:
                     parent = 0
@@ -300,21 +283,17 @@ class Tracker:
                     continue
                 if traces_selection[parent_idx] is None:
                     # Ignore traces with "bad ancestors"
-                    #print(f"{fr :3d} cell {i :3d} has bad ancestor") #DEBUG
                     continue
                 elif parent_idx in new_idx.values():
                     # Eliminate siblings
                     traces_selection[parent_idx] = None
-                    #print(f"{fr :3d} cell {i :3d} has siblings") #DEBUG
                 else:
                     # Register this region as child of parent
                     new_idx[li] = parent_idx
                     traces[parent_idx].append(li)
                     if parent['large'] or parent['small']:
                         traces_selection[parent_idx] = False
-                    #print(f"{fr :3d}: cell {i :3d} is child of {parent_idx :3d}") #DEBUG
             last_idx = new_idx
-            #breakpoint() #DEBUG
             print("Frame {:03d}: {:.4f}s".format(fr + 1, time.time() - tic)) #DEBUG
 
         # Clean up cells
@@ -324,8 +303,8 @@ class Tracker:
             if len(tr) == self.n_frames and traces_selection[i] is not None:
                 self.traces.append(tr)
                 self.traces_selection.append(traces_selection[i])
+        print(f"Total tracking time: {time.time() - tic0 :.2f}s") #DEBUG
 
-    #@jit
     def _check_props(self, props, edges=True, coords=None):
         """Check if given regionprops are valid.
 
