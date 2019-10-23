@@ -186,7 +186,8 @@ class Tracker:
             tic = time.time() #DEBUG
 
             # Compare bounding boxes
-            bbox_old = self.update_bboxes(bbox_new, (*last_idx.keys(),))
+            #bbox_old = self.update_bboxes(bbox_new, (*last_idx.keys(),))
+            bbox_old = bbox_new
             bbox_new = self.get_bboxes(fr)
             overlaps = np.logical_and(
                 np.logical_and(
@@ -198,6 +199,9 @@ class Tracker:
 
             for i in range(overlaps.shape[0]):
                 js = np.flatnonzero(overlaps[i,:])
+
+                if fr < 5:
+                    print(f"{fr :3d}: cell {i :3d} has {len(js)} parents") #DEBUG
 
                 # Continue if ROI has no parent
                 if js.size == 0:
@@ -219,30 +223,39 @@ class Tracker:
                     for ir in self.intercalation_iterator(ci.shape[0]):
                         #breakpoint() #DEBUG
                         if np.any(np.all(cj == ci[None, ir, :], axis=1)):
+                            print(f"{fr :3d}: cell {i :3d} has parent {j :3d}") #DEBUG
                             break
                     else:
+                        print(f"{fr :3d}: cell {i :3d} does not have {j :3d} as parent") #DEBUG
                         continue
 
                     ckj = bbox_old['check'][j]
                     if ckj & self.IS_UNCHECKED:
+                        print("parent unchecked") #DEBUG
                         continue
                     elif ckj & self.IS_AT_EDGE:
                         if ckj & self.IS_TOO_SMALL:
+                            print("parent too small & at edge") #DEBUG
                             continue
                         else:
                             is_select = None
+                            print("parent too small") #DEBUG
                             break
                     if ckj & self.IS_TOO_SMALL:
+                        print("parent too small") #DEBUG
                         parents.append(dict(label=pj.label, large=False, small=True, area=pj.area))
                     elif ckj & self.IS_TOO_LARGE:
+                        print("parent too large") #DEBUG
                         parents.append(dict(label=pj.label, large=True, small=False, area=pj.area))
                     else:
+                        print("parent good") #DEBUG
                         parents.insert(0, dict(label=pj.label, large=False, small=False, area=pj.area))
 
                 # Check for parents
                 if is_select is None:
                     pass
                 elif not parents:
+                    print("orphan") #DEBUG
                     continue
                 elif len(parents) == 1:
                     parent = 0
@@ -271,17 +284,21 @@ class Tracker:
                     continue
                 if traces_selection[parent_idx] is None:
                     # Ignore traces with "bad ancestors"
+                    print(f"{fr :3d} cell {i :3d} has bad ancestor") #DEBUG
                     continue
                 elif parent_idx in new_idx.values():
                     # Eliminate siblings
                     traces_selection[parent_idx] = None
+                    print(f"{fr :3d} cell {i :3d} has siblings") #DEBUG
                 else:
                     # Register this region as child of parent
-                    new_idx[pi.label] = parent_idx
-                    traces[parent_idx].append(pi.label)
+                    new_idx[li] = parent_idx
+                    traces[parent_idx].append(li)
                     if parent['large'] or parent['small']:
                         traces_selection[parent_idx] = False
+                    print(f"{fr :3d}: cell {i :3d} is child of {parent_idx :3d}") #DEBUG
             last_idx = new_idx
+            #breakpoint() #DEBUG
             print("Frame {:03d}: {:.4f}s".format(fr + 1, time.time() - tic)) #DEBUG
 
         # Clean up cells
