@@ -81,7 +81,8 @@ class Tracker:
 
     def get_bboxes(self, fr):
         """Build a dictionary with bounding boxes of ROIs in frame `fr`"""
-        n = len(self.props[fr])
+        this_props = self.props[fr]
+        n = len(this_props)
         i = 0
         labels = np.empty(n, dtype=np.object)
         props = np.empty(n, dtype=np.object)
@@ -89,7 +90,7 @@ class Tracker:
         x_min = np.empty(n, dtype=np.int32)
         y_max = np.empty(n, dtype=np.int32)
         x_max = np.empty(n, dtype=np.int32)
-        for lbl, p in self.props[fr].items():
+        for lbl, p in this_props.items():
             labels[i] = lbl
             props[i] = p
             y_min[i], x_min[i], y_max[i], x_max[i] = p.bbox
@@ -109,6 +110,21 @@ class Tracker:
                 'x_max': x_max,
                 'check': np.full(n, self.IS_UNCHECKED, dtype=np.uint8),
                }
+
+    def update_bboxes(self, bb, keys):
+        """Remove all entries from bboxes instance `bb` that are not in `keys`"""
+        idx = np.isin(bb['labels'], keys)
+        if np.all(idx):
+            return bb
+        bb['n'] = np.sum(idx)
+        bb['labels'] = bb['labels'][idx]
+        bb['props'] = bb['props'][idx]
+        bb['y_min'] = bb['y_min'][idx]
+        bb['x_min'] = bb['x_min'][idx]
+        bb['y_max'] = bb['y_max'][idx]
+        bb['x_max'] = bb['x_max'][idx]
+        bb['check'] = bb['check'][idx]
+        return bb
 
     @staticmethod
     def intercalation_iterator(n):
@@ -153,7 +169,7 @@ class Tracker:
         for i in range(bbox_new['n']):
             ck = self._check_props(bbox_new['props'][i])
             bbox_new['check'][i] = ck
-            if ck & self.IS_AT_EDGE:
+            if ck & self.IS_AT_EDGE and ck & self.IS_TOO_SMALL:
                 continue
             lbl = bbox_new['labels'][i]
             last_idx[lbl] = len(traces)
@@ -164,14 +180,13 @@ class Tracker:
 
         # Track further frames
         for fr in range(1, self.n_frames):
-            parents = []
-            is_select = True
+            new_idx = {}
             if self.progress_fcn is not None:
                 self.progress_fcn(msg="Tracking cells", current=fr + 1, total=self.n_frames)
             tic = time.time() #DEBUG
 
             # Compare bounding boxes
-            bbox_old = bbox_new
+            bbox_old = self.update_bboxes(bbox_new, (*last_idx.keys(),))
             bbox_new = self.get_bboxes(fr)
             overlaps = np.logical_and(
                 np.logical_and(
@@ -181,7 +196,6 @@ class Tracker:
                     bbox_new['x_min'].reshape((-1, 1)) < bbox_old['x_max'].reshape((1, -1)),
                     bbox_new['x_max'].reshape((-1, 1)) > bbox_old['x_min'].reshape((1, -1))))
 
-            new_idx = {}
             for i in range(overlaps.shape[0]):
                 js = np.flatnonzero(overlaps[i,:])
 
@@ -193,13 +207,17 @@ class Tracker:
                 pi = bbox_new['props'][i]
                 ci = pi.coords
 
+                parents = []
+                is_select = True
+
                 # Compare with regions of previous frame
                 # Check if parent is valid (area, edge)
                 for j in js:
+                    #breakpoint() #DEBUG
                     pj = bbox_old['props'][j]
                     cj = pj.coords
                     for ir in self.intercalation_iterator(ci.shape[0]):
-                        #breakpoint()
+                        #breakpoint() #DEBUG
                         if np.any(np.all(cj == ci[None, ir, :], axis=1)):
                             break
                     else:
