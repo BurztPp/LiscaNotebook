@@ -8,6 +8,8 @@ import numpy as np
 from ._aux_find_corners import find_roi_corners
 from ._aux_find_perimeter import find_roi_perimeter
 
+from ..utils import make_uid
+
 
 class Roi(abc.ABC):
     """Base class for ROIs
@@ -17,9 +19,11 @@ class Roi(abc.ABC):
     Y = 0
     X = 1
     Roi_BBox = namedtuple('Roi_BBox', ('y_min', 'x_min', 'y_max', 'x_max'))
+    TYPE = None
 
     def __init__(self, category=None, visible=True, name=None, name_visible=True, color=None, stroke_width=None,
             frame=Ellipsis, coords=None):
+        self.__uid = make_uid(self)
         self.lock = RLock()
 
         self._category = category
@@ -37,17 +41,25 @@ class Roi(abc.ABC):
         self._corners = None
 
 
-    @classmethod
-    @abc.abstractmethod
-    def key(cls):
-        """Return a tuple of two strings: (type, version)"""
-        raise NotImplementedError
+    #@classmethod
+    #@abc.abstractmethod
+    #def key(cls):
+    #    """Return a tuple of two strings: (type, version)"""
+    #    raise NotImplementedError
+
+    @property
+    def type(self):
+        return self.TYPE
 
     def serialize(self, *_, **__):
         raise NotImplementedError
 
     def deserialize(self, *_, **__):
         raise NotImplementedError
+
+    @property
+    def uid(self):
+        return self.__uid
 
     @property
     def category(self):
@@ -96,7 +108,7 @@ class Roi(abc.ABC):
 
     @property
     def color_hex(self):
-        """Guaranteed to return color as #rrggbb hex string"""
+        """Guaranteed to return color as #rrggbb hex string (or None)"""
         try:
             with self.lock:
                 return to_hex(self._color)
@@ -220,12 +232,10 @@ class Roi(abc.ABC):
             return None
 
     def overlap(self, other):
-        other_coords = other.coords
-        self_coords = self.coords
         overlap = np.empty(self.size, dtype=np.bool)
-        for i, row in enumerate(self_coords):
-            overlap[i] = np.any(np.all(row == other_coords, axis=1))
-        return self_coords[overlap, :]
+        for i, row in enumerate(self.coords):
+            overlap[i] = np.any(np.all(row == other.coords, axis=1))
+        return self.coords[overlap, :]
 
     @property
     def centroid(self):

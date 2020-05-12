@@ -1,14 +1,14 @@
 import numpy as np
 import skimage.measure as skmeas
-#import skimage.segmentation as skseg
 
 from .base import Roi
 
 
 class ContourRoi(Roi):
-    @classmethod
-    def key(cls):
-        return ("raw", "0.1")
+    TYPE = 'raw'
+    #@classmethod
+    #def key(cls):
+    #    return ("raw", "0.1")
 
     def __init__(self, mask=None, label=None, coords=None, regionprop=None, lazy=True, **kwargs):
         super().__init__(**kwargs)
@@ -33,9 +33,6 @@ class ContourRoi(Roi):
 
         else:
             raise ValueError("Illegal arguments")
-
-        #self.bbox = np.array((self.rows.min(), self.cols.min(), self.rows.max(), self.cols.max()),
-        #        dtype=[(x, np.int16) for x in ('y_min', 'x_min', 'y_max', 'x_max')])
 
         if not lazy:
             self.perimeter

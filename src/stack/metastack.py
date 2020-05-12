@@ -6,9 +6,9 @@ import PIL.Image as pilimg
 import PIL.ImageTk as piltk
 import skimage.transform as sktrans
 
-from ..listener import Listeners
-from ..roi import RoiCollection
 from .stack import Stack
+from .roistack import RoiStack
+from ..listener import Listeners
 
 
 @dataclass
@@ -37,10 +37,10 @@ class ChannelSpec:
             self.type = type_
 
 
-class MetaStack:
+class MetaStack(RoiStack):
     def __init__(self):
+        super().__init__()
         self.image_lock = threading.RLock()
-        self.roi_lock = threading.RLock()
         self._listeners = Listeners(kinds={'roi', 'image', 'load'})
         self._stacks = {}
         self._channels = []
@@ -48,7 +48,6 @@ class MetaStack:
         self._width = None
         self._height = None
         self._mode = None
-        self.__rois = {}
 
         self.close = self.clear
 
@@ -64,7 +63,7 @@ class MetaStack:
             self._mode = None
 
         with self.roi_lock:
-            self.__rois.clear()
+            self.clear_rois()
 
         # Notify listeners
         self._listeners.notify(kind=None)
@@ -258,84 +257,6 @@ class MetaStack:
     def delete_listener(self, lid):
         """Un-register a listener."""
         self._listeners.delete(lid)
-
-    def _notify_roi_listeners(self, *_, **__):
-        """Convenience function for propagation of ROI changes"""
-        self._listeners.notify("roi")
-
-    def new_roi_collection(self, roi):
-        """Create a new RoiCollection"""
-        if isinstance(roi, RoiCollection):
-            with self.roi_lock:
-                roi.register_listener(self._notify_roi_listeners)
-                self.__rois[roi.key] = roi
-        else:
-            raise TypeError(f"Expected 'RoiCollection', got '{type(roi)}'")
-
-    def set_rois(self, rois, key=None, frame=Ellipsis, replace=False):
-        """Set the ROI set of the stack.
-
-        :param rois: The ROIs to be set
-        :type rois: iterable of Roi
-        :param frame: index of the frame to which the ROI belongs.
-            Use ``Ellipsis`` to specify ROIs valid in all frames.
-        :type frame: int or Ellipsis
-
-        For details, see :py:class:`RoiCollection`.
-        """
-        # Infer ROI type key
-        if key is None:
-            for r in rois:
-                key = r.key()
-                break
-
-        with self.roi_lock:
-            if key not in self.__rois:
-                self.__rois[key] = RoiCollection(key)
-                self.__rois[key].register_listener(self._notify_roi_listeners)
-            if replace:
-                self.__rois[key][frame] = rois
-            else:
-                self.__rois[key].add(frame, rois)
-
-    def print_rois(self):
-        """Nice printout of ROIs. Only for DEBUGging."""
-        prefix = "[Stack.print_rois]"
-        for k, v in self.__rois.items():
-            print(f"{prefix} ROI type '{k}' has {len(v)} frame(s)")
-            for frame, rois in v.items():
-                print(f"{prefix}\t frame '{frame}' has {len(rois)} ROIs")
-                # print(rois) # DEBUG
-
-    @property
-    def rois(self):
-        with self.roi_lock:
-            return self.__rois
-
-    def get_rois(self, key=None, frame=None):
-        """Get ROIs, optionally at a specified position.
-
-        :param key: ROI type identifier
-        :type key: tuple (len 2) of str
-        :param frame: frame identifier
-        :return: ROI set
-        """
-        with self.roi_lock:
-            rois = self.__rois.get(key)
-            if rois is not None and frame is not None:
-                return rois[frame]
-            return rois
-
-    def clear_rois(self, key=None, frame=None):
-        """Delete the current ROI set"""
-        with self.roi_lock:
-            if key is None:
-                self.__rois = {}
-            elif frame is None:
-                del self.__rois[key]
-            else:
-                del self.__rois[key][frame]
-            self._notify_roi_listeners()
 
     @property
     def path(self):

@@ -100,7 +100,6 @@ class RectRoiGridAdjuster:
     def __init__(self, sv, props=None):
         # Get StackViewer-related content
         stack = sv.stack
-        #self.stack = sv.stack
         self.roicol = stack.get_rois(RectRoi.key())
         if self.roicol is None:
             self.roicol = RoiCollection(RectRoi.key(),

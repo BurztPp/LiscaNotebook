@@ -34,16 +34,15 @@ class RectRoi(Roi):
         The coordinates are calculated in a lazy manner since this may
         take comparably long. Results are cached.
 
-    ``area``
+    ``size``
         The number of pixels in the ROI. Querying this value involves
         calculating the ``coords``.
 
+    ``area``
+        The area of the rectangle. This value need not be an integer.
+
     ``perimeter``
-        The coordinates of the pixels at the edge of the ROI, represented
-        as a N-by-2 :py:class:`numpy.array` with row indices at ``[:,0]``
-        and column indices at ``[:,0]``.
-        The coordinates are calculated in a lazy manner since this may
-        take comparably long. Results are cached.
+        see Roi
 
     ``rows``
         A one-dimensional :py:class:`numpy.array` of the row indices of
@@ -56,12 +55,7 @@ class RectRoi(Roi):
         the ``coords``.
     """
     #TODO: adapt new API (cf. ContourRoi)
-    type_id = "rect"
-    version = "0.1"
-
-    @classmethod
-    def key(cls):
-        return (cls.type_id, cls.version)
+    TYPE = "rect"
 
     def __init__(self, polygon, props=None, inverted=False, **kwargs):
         super().__init__(**kwargs)

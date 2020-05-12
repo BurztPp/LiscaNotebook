@@ -700,21 +700,21 @@ class StackViewer:
                     if stroke_width is None:
                         stroke_width = col_stroke_width
 
-                    roi_key = roi.key()[0]
-                    if roi_key == 'raw':
+                    rtype = roi.type
+                    if rtype == 'raw':
                         contour = roi.contour
                         if self.scale is not None:
                             contour = contour * self.scale
                         self.canvas.create_polygon(*contour[:, ::-1].flat, tags=tags,
                                 fill='', outline=color, width=stroke_width)
-                    elif roi_key == 'rect':
+                    elif rtype == 'rect':
                         corners = roi.corners
                         if self.scale is not None:
                             corners = corners * self.scale
                         self.canvas.create_polygon(*corners[:, ::-1].flat, tags=tags,
                                 fill='', outline=color, width=stroke_width)
                     else:
-                        print(f"Undefined ROI type: '{roi_key}'") #DEBUG
+                        print(f"Undefined ROI type: '{rtype}'") #DEBUG
 
                 if roi.name and roi.name_visible:
                     txtpos = roi.centroid.flat[::-1]
