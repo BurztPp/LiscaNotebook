@@ -578,12 +578,12 @@ class Stack(RoiStack):
     def get_image(self, channel, frame):
         """Get a numpy array of a stack position."""
         with self.image_lock:
-            return self.img[channel, frame, :, :]
+            return self.img[channel, frame, :, :].copy()
 
     def get_image_copy(self, channel, frame):
         """Get a copy of a numpy array of a stack position."""
-        with self.image_lock:
-            return self.img[channel, frame, :, :].copy()
+        print("Stack.get_image_copy: this method is deprecated") #DEBUG
+        return self.get_image(channel, frame)
 
     def get_frame_tk(self, channel, frame, convert_fcn=None):
         """

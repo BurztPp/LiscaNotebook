@@ -593,7 +593,8 @@ class SessionView_Tk(SessionView):
             imgs = []
             seg_img = None
             for i in channels:
-                img = stack.get_image(channel=i, frame=frame, scale=scale)
+                img = stack.get_image(channel=i, frame=frame)
+                img = stack.scale_img(img, scale=scale)
                 if stack.spec(i).type != ty.TYPE_SEGMENTATION:
                     if self.var_darken_deselected.get():
                         # Darken deselected and untracked cells

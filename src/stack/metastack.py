@@ -165,18 +165,16 @@ class MetaStack(RoiStack):
         stack = Stack(path)
         return stack
 
-    def get_image(self, *, channel, frame, scale=None):
+    def get_image(self, *, channel, frame):
         """Get a numpy array of a stack position."""
         with self.image_lock:
             spec = self._channels[channel]
             if spec.isVirtual:
-                img = spec.fun(self, frame=frame, scale=scale)
+                img = spec.fun(self, frame=frame)
             else:
                 name = spec.name
                 ch = spec.channel
                 img = self._stacks[name].get_image(channel=ch, frame=frame)
-            if scale is not None and not spec.scales:
-                img = self.scale_img(img, scale)
             return img
 
     @staticmethod
@@ -209,11 +207,11 @@ class MetaStack(RoiStack):
                                   anti_aliasing=True,
                                   anti_aliasing_sigma=anti_aliasing_sigma,
                                  )
-        
 
-    def get_image_copy(self, *, channel, frame, scale=None):
+
+    def get_image_copy(self, *, channel, frame):
         """Get a copy of a numpy array of a stack position."""
-        return self.get_image(channel=channel, frame=frame, scale=scale).copy()
+        return self.get_image(channel=channel, frame=frame).copy()
 
 
     def get_frame_tk(self, *, channel, frame, convert_fcn=None):
