@@ -2,10 +2,31 @@ import random
 import string
 import threading
 
+from .session.events import Event
+
 
 class Listeners:
-    def __init__(self, kinds=None, debug=False):
-        self.__kinds = kinds
+    """Listener notification class
+
+    :param kinds: different event categories offered by this Listeners instance
+    :type kinds: None, str or iterable of str
+    :param require_queue: Force listeners to pass a queue at registering
+    :type require_queue: bool
+    :param debug:
+    :type debug: bool
+    """
+    def __init__(self, kinds=None, require_queue=False, debug=False):
+        if kinds is None:
+            self.__kinds = None
+        elif isinstance(kinds, str):
+            self.__kinds = (str,)
+        else:
+            try:
+                assert all(isinstance(k, str) for k in kinds)
+            except Exception:
+                raise ValueError("`kinds` must be None, str or iterable of str")
+            self.__kinds = tuple(k for k in kinds)
+        self.__require_queue = require_queue
         self.debug = debug
         self.__listeners = {}
         self.__lock = threading.RLock()
@@ -14,13 +35,17 @@ class Listeners:
     def kinds(self):
         return self.__kinds
 
-    def register(self, fun, kind=None):
+    def register(self, fun, kind=None, queue=None):
         """
         Register a listener that will be notified on changes.
 
         Listeners can be registered to listen to all kinds of events or only to certain kinds.
         The kinds should be strings.
         When kind is None, fun will be called by all of these events.
+
+        If a queue is passed, an Event will be fed into the queue, including
+        ``fun`` and any arguments passed at notifying.
+        If no queue is passed, ``fun`` will be called directly by the notifying thread.
 
         A listener ID is returned that can be used to delete the listener.
         If the registration was not successful, None is returned.
@@ -31,6 +56,8 @@ class Listeners:
         :type fun: function handle
         :param kind: The kind of events when the function will be called
         :type kind: None, str or iterable containing strings
+        :param queue: Queue object to feed an event as notification
+        :type queue: None or Queue
 
         :return: a listener ID or None
         :rtype: str or None
@@ -42,12 +69,13 @@ class Listeners:
             else:
                 s_kind = set()
 
-                if type(kind) == str and kind in self.__kinds:
+                if isinstance(kind, str):
+                    assert kind in self.__kinds
                     s_kind.add(kind)
                 else:
                     for k in kind:
-                        if type(kind) == str and kind in self.__kinds:
-                            s_kind.add(kind)
+                        assert isinstance(kind, str) and kind in self.__kinds
+                        s_kind.add(kind)
                 kind = s_kind
 
             if not kind:
@@ -55,10 +83,13 @@ class Listeners:
                     print(f"Cannot register listener: bad kind \"{kind}\"")
                 return None
 
+        if self.__require_queue and not queue:
+            raise ValueError("This Listeners instance requires a queue.")
+
         with self.__lock:
             # Register listener and return its listener ID
             lid = self._generate_unique_id()
-            self.__listeners[lid] = {"fun": fun, "kind": kind}
+            self.__listeners[lid] = {'fun': fun, 'kind': kind, 'queue': queue}
             return lid
 
     def _generate_unique_id(self):
@@ -73,7 +104,7 @@ class Listeners:
             isInvalid = lid in self.__listeners
         return lid
 
-    def notify(self, kind=None):
+    def notify(self, kind=None, *args, **kwargs):
         """
         Notify the listeners.
 
@@ -85,7 +116,10 @@ class Listeners:
                 if kind is not None and kind not in listener["kind"]:
                     continue
                 try:
-                    listener["fun"]()
+                    if listener['queue']:
+                        Event.fire(listener['queue'], listener['fun'], *args, **kwargs)
+                    else:
+                        listener['fun'](*args, **kwargs)
                 except Exception:
                     if self.debug:
                         raise
@@ -93,10 +127,11 @@ class Listeners:
 
     def delete(self, lid):
         """Delete the listener with ID ``lid``, if existing."""
-        with self.__lock:
-            if lid in self.__listeners:
+        try:
+            with self.__lock:
                 del self.__listeners[lid]
-            elif self.debug:
+        except KeyError:
+            if self.debug:
                 print(f"Cannot delete listener: ID \"{lid}\" not found.")
 
     def clear(self):
