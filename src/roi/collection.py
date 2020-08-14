@@ -1,7 +1,7 @@
 from threading import RLock
 from .base import Roi
 from ..listener import Listeners
-from ..utils import make_uid
+from ..util import make_uid
 
 
 class RoiCollection:

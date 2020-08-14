@@ -8,7 +8,7 @@ import numpy as np
 from ._aux_find_corners import find_roi_corners
 from ._aux_find_perimeter import find_roi_perimeter
 
-from ..utils import make_uid
+from ..util import make_uid
 
 
 class Roi(abc.ABC):

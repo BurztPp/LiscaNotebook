@@ -3,6 +3,7 @@ import string
 import threading
 
 from .session.events import Event
+from .util import make_uid
 
 
 class Listeners:
@@ -31,9 +32,11 @@ class Listeners:
         self.__listeners = {}
         self.__lock = threading.RLock()
 
+
     @property
     def kinds(self):
         return self.__kinds
+
 
     def register(self, fun, kind=None, queue=None):
         """
@@ -88,21 +91,10 @@ class Listeners:
 
         with self.__lock:
             # Register listener and return its listener ID
-            lid = self._generate_unique_id()
+            lid = make_uid(fun)
             self.__listeners[lid] = {'fun': fun, 'kind': kind, 'queue': queue}
             return lid
 
-    def _generate_unique_id(self):
-        # Get a unique listener ID
-        # Not thread-safe!
-        k = 0
-        isInvalid = True
-        while isInvalid:
-            k += 1
-            lid = "".join(random.choices(
-                string.ascii_letters + string.digits, k=k))
-            isInvalid = lid in self.__listeners
-        return lid
 
     def notify(self, kind=None, *args, **kwargs):
         """
@@ -125,6 +117,7 @@ class Listeners:
                         raise
                     self.delete(lid)
 
+
     def delete(self, lid):
         """Delete the listener with ID ``lid``, if existing."""
         try:
@@ -133,6 +126,7 @@ class Listeners:
         except KeyError:
             if self.debug:
                 print(f"Cannot delete listener: ID \"{lid}\" not found.")
+
 
     def clear(self):
         """Delete all listeners"""

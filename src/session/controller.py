@@ -1,22 +1,12 @@
 import queue
 import threading
 
+from ..util import threaded
 from . import const
 from .events import Event
 from .model import SessionModel
 from .status import Status
 
-def threaded(fn):
-    """Decorator function for running in a new thread
-
-    `fn` is the function to be run in a new thread.
-    The thread is started and the thread object is returned.
-    """
-    def threaded_fun(*args, **kwargs):
-        t = threading.Thread(target=fn, args=args, kwargs=kwargs)
-        t.start()
-        return t
-    return threaded_fun
 
 class SessionController:
     def __init__(self, session_type='tk', name=None, version=None, read_session_path=None):

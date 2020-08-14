@@ -31,3 +31,17 @@ CMD_TOOL_BINARIZE = 'cmd_tool_binarize'
 CMD_TOOL_BGCORR = 'cmd_tool_bgcorr'
 
 RESP_NEW_SESSION_ID = 'resp_new_session_id'
+
+# ChannelCollection
+EVT_CLOSE = 'ChannelCollection_close'
+EVT_STACK_ADDED = 'ChannelCollection_stack-added'
+EVT_STACK_RENAMED = 'ChannelCollection_stack-renamed'
+EVT_STACK_DROPPED = 'ChannelCollection_stack-dropped'
+EVT_CHANNELS_REORDERED = 'ChannelCollection_channels-reordered'
+EVT_CHANNEL_SPEC_CHANGE = 'ChannelCollection_channel-spec-change'
+
+CH_CAT_PHC = 'Phase-contrast'
+CH_CAT_FL = 'Fluorescence'
+CH_CAT_BIN = 'Binary'
+CH_CAT_LBL = 'Label'
+CH_CAT_LIST = (CH_CAT_PHC, CH_CAT_FL, CH_CAT_BIN, CH_CAT_LBL)
