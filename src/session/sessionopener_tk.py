@@ -7,7 +7,6 @@ from .status import DummyStatus
 from .events import Event
 from ..stack import Stack
 from ..stack import metastack as ms
-from ..stack import types as ty
 
 class SessionOpener:
     """Ask the user for stacks.
@@ -137,7 +136,7 @@ class SessionOpener:
         self.chan_opt = tk.OptionMenu(chan_add_frame, self.var_chan, 0)
         self.chan_opt.grid(row=2, column=0, sticky='NESW')
         self.type_opt = tk.OptionMenu(chan_add_frame, self.var_type,
-            ty.TYPE_PHASECONTRAST, ty.TYPE_FLUORESCENCE, ty.TYPE_SEGMENTATION)
+            *const.CH_CAT_LIST)
         self.type_opt.grid(row=2, column=1, sticky='NESW')
         self.label_entry = tk.Entry(chan_add_frame, textvariable=self.var_label)
         self.label_entry.grid(row=2, column=2, sticky='NESW')
@@ -253,7 +252,7 @@ class SessionOpener:
             self.chan_opt['menu'].add_command(label=i, command=tk._setit(self.var_chan, i))
         self.var_chan.set(0)
         self.var_label.set('')
-        self.var_type.set(ty.TYPE_PHASECONTRAST)
+        self.var_type.set(const.CH_CAT_PHC)
 
     def disable_channel_selection(self):
         self.var_chan.set(())

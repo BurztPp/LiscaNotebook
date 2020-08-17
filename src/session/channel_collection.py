@@ -116,24 +116,6 @@ class ChannelCollection(BaseStack):
             stack = self.__stacks[stack_id]['ref']
             if stack.n_channels <= index:
                 raise IndexError(f"Stack '{stack_id} has no channel {index}'")
-
-# old stuff; to be deleted
-#            if self._shape is not None:
-#                #TODO Check if stack is compatible
-#                s_shape = stack.shape_dict
-#                s_S = s_shape.get[sconst.S]
-#                if s_S and s_S > 1
-#                    raise ValueError("Stacks with multiple samples are currently not supported")
-#                if s_shape[sconst.X] != self._shape[sconst.X] or \
-#                        s_shape[sconst.Y] != self._shape[sconst.Y]:
-#                        raise ValueError("Incompatible image resolutions: "
-#                            f"{s_shape[sconst.X]}x{s_shape[sconst.Y]} does not match "
-#                            f"{self._shape[sconst.X]}x{self._shape[sconst.Y]}")
-#                for dim in (sconst.T, sconst.Z, sconst.C):
-#                    n_stack = s_shape.get(dim)
-#                    n_self = self._shape.get(dim)
-#                    if all(n not in (None, 1) for n in (n_stack, n_self)) and (n_stack != n_self):
-#                        raise ValueError(f"Dimension {dim}=){n_stack} not compatible with {n_self}")
             ch = {}
             ch_id = util.make_uid(ch)
             if not name:
@@ -303,45 +285,6 @@ class ChannelCollection(BaseStack):
                     )
             self._shape = merged
             self.listeners.notify(sconst.EVT_RESHAPE, message=msg)
-
-
-        # Old function body; to be deleted
-#        with self.lock:
-#            msg = None
-#            if not self.__channels:
-#                if self._shape:
-#                    old_shape = self._shape.copy()
-#                    self._shape = None
-#                    msg = dict(
-#                            event=sconst.EVT_RESHAPE,
-#                            id=self.stack_id,
-#                            old=old_shape,
-#                            new=self._shape)
-#            else:
-#                if self._shape is None:
-#                    old_shape = None
-#                else:
-#                    s_id = next(iter(self.__channels.values()))['stack']
-#                    stack = self.__stacks[s_id]
-#                    old_shape = self._shape.copy()
-#                    new_shape = OrderedDict()
-#                    new_shape[sconst.C] = len(self.__channels)
-#                    for dim, n in stack.shape_dict:
-#                        if dim == sconst.C:
-#                            continue
-#                        elif dim == sconst.S:
-#                            if n > 1:
-#                                raise NotImplementedError("Samples are currently not supported.")
-#                            continue
-#                        else:
-#                            new_shape[dim] = n
-#                    msg = dict(
-#                            event=sconst.EVT_RESHAPE,
-#                            id=self._id,
-#                            old=old_shape,
-#                            new=new_shape.copy()
-#                            )
-#                    self._shape = new_shape
 
 
     def _hear_event(self, *args, **kwargs):

@@ -17,7 +17,6 @@ from ..io import StackdataIO
 from ..roi import ContourRoi
 from ..stack import Stack
 from ..stack import metastack as ms
-from ..stack import types as ty
 from ..tracking import Tracker
 
 class SessionModel:
@@ -31,9 +30,8 @@ class SessionModel:
         The list items correspond to the channels of
         `self.display_stack` with the same index. The dict
         holds information of the selection widgets:
-        'type'      str of the channel type; one of:
-                    `ty.TYPE_PHASECONTRAST`, `ty.TYPE_FLUORESCENCE`
-                    and `ty.TYPE_SEGMENTATION`
+        'type'      str of the channel type; one of those in:
+                    `const.CH_CAT_LIST`
         'val'       boolean; indicates whether this channel is
                     currently displayed (True) or not (False).
         'button'    tk.Button instance for displaying the channel
@@ -84,7 +82,7 @@ class SessionModel:
                     possibly also for unit conversions.
                     Default: 'a.u.'
         'factor'    float, factor to multiply values to yield 'unit'. Default: None
-        'type'      str, one of `TYPE_AREA` and `ty.TYPE_FLUORESCENCE`.
+        'type'      str, one of the contents of `const.DT_CAT_LIST`.
                     Indicates the type of quantity of the trace.
         'order'     int, indicates in which order to display the plots.
         'button'    tk.Button, the button instance for controlling 'plot'
@@ -122,11 +120,11 @@ class SessionModel:
         self._microscope_resolution = None
 
     def init_trace_info(self):
-        self.trace_info = {const.TYPE_AREA: dict(label=None,
+        self.trace_info = {const.DT_CAT_AREA: dict(label=None,
                                            channel=None,
                                            unit="px²",
                                            factor=None,
-                                           type=const.TYPE_AREA,
+                                           type=const.DT_CAT_AREA,
                                            order=0,
                                            button=None,
                                            var=None,
@@ -136,7 +134,7 @@ class SessionModel:
 
     def clear_trace_info(self):
         for k in tuple(self.trace_info.keys()):
-            if k != const.TYPE_AREA:
+            if k != const.DT_CAT_AREA:
                 del self.trace_info[k]
 
     def open_stack(self, fn, status=None):
@@ -254,7 +252,7 @@ class SessionModel:
                 stack = self.get_stack(ci['stack_id'])
                 if stack is None:
                     pass
-                elif ci['type'] == ty.TYPE_SEGMENTATION:
+                elif ci['type'] == const.CH_CAT_BIN:
                     height_seg = stack.height
                     width_seg = stack.width
                     n_frames_seg = stack.n_frames
@@ -289,7 +287,7 @@ class SessionModel:
             retain_stacks = set()
             for ci in chan_info:
                 stack = self.get_stack(ci['stack_id'])
-                if ci['type'] == ty.TYPE_SEGMENTATION:
+                if ci['type'] == const.CH_CAT_BIN:
                     if do_track and stack is not None:
                         if pad_y or pad_x:
                             with status("Cropping segmented stack"):
@@ -312,7 +310,7 @@ class SessionModel:
                                     )
                     retain_stacks.add(stack)
 
-                if ci['type'] == ty.TYPE_FLUORESCENCE:
+                if ci['type'] == const.CH_CAT_FL:
                     label = f"Fluorescence {i_channel_fl}"
                     name = ci['label']
                     if not name:
@@ -453,7 +451,7 @@ class SessionModel:
             # Get fluorescence channels
             fl_chans = []
             for name, info in self.trace_info.items():
-                if info['type'] == ty.TYPE_FLUORESCENCE:
+                if info['type'] == const.CH_CAT_FL:
                     fl_chans.append({'name': name,
                                      'i_channel': info['channel'],
                                      'img': None,
@@ -461,7 +459,7 @@ class SessionModel:
             fl_chans.sort(key=lambda ch: self.trace_info[ch['name']]['order'])
 
             # Get microscope resolution (=area conversion factor)
-            area_factor = self.trace_info[const.TYPE_AREA]['factor']
+            area_factor = self.trace_info[const.DT_CAT_AREA]['factor']
 
             # Read traces
             for tr in self.traces.values():
@@ -473,7 +471,7 @@ class SessionModel:
                     val_area[fr] = self.rois[fr][i].area
                 if area_factor is not None:
                     val_area *= area_factor
-                tr['val'][const.TYPE_AREA] = val_area
+                tr['val'][const.DT_CAT_AREA] = val_area
 
                 # Fluorescence
                 for ch in fl_chans:
@@ -625,11 +623,11 @@ class SessionModel:
             self._microscope_resolution = resolution
 
             if resolution is not None:
-                self.trace_info[const.TYPE_AREA]['unit'] = "µm²"
-                self.trace_info[const.TYPE_AREA]['factor'] = resolution**2
+                self.trace_info[const.DT_CAT_AREA]['unit'] = "µm²"
+                self.trace_info[const.DT_CAT_AREA]['factor'] = resolution**2
             else:
-                self.trace_info[const.TYPE_AREA]['unit'] = "px²"
-                self.trace_info[const.TYPE_AREA]['factor'] = None
+                self.trace_info[const.DT_CAT_AREA]['unit'] = "px²"
+                self.trace_info[const.DT_CAT_AREA]['factor'] = None
             self.read_traces(status=status)
 
     def save_session(self, save_dir, status=None):
@@ -734,7 +732,7 @@ class SessionModel:
 
         # Get index of first phase-contrast channel
         for i, spec in enumerate(self.stack.channels):
-            if spec.type == ty.TYPE_PHASECONTRAST:
+            if spec.type == const.CH_CAT_PHC:
                 i_channel = i
                 break
         else:
@@ -759,9 +757,9 @@ class SessionModel:
         i_chan_fl = None
         i_chan_bin = None
         for i, spec in enumerate(self.stack.channels):
-            if spec.type == ty.TYPE_FLUORESCENCE and i_chan_fl is None:
+            if spec.type == const.CH_CAT_FL and i_chan_fl is None:
                 i_chan_fl = i
-            elif spec.type == ty.TYPE_SEGMENTATION and i_chan_bin is None:
+            elif spec.type == const.CH_CAT_BIN and i_chan_bin is None:
                 i_chan_bin = i
             if i_chan_fl is not None and i_chan_bin is not None:
                 break

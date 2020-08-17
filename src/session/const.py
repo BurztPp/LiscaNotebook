@@ -14,7 +14,6 @@ ROI_WIDTH_HIGHLIGHT = 3
 
 DESELECTED_DARKEN_FACTOR = .3
 
-TYPE_AREA = 'Area'
 
 CMD_INIT_SESSION = 'cmd_init_session'
 CMD_READ_SESSION_FROM_DISK = 'cmd_read_session_from_disk'
@@ -45,3 +44,8 @@ CH_CAT_FL = 'Fluorescence'
 CH_CAT_BIN = 'Binary'
 CH_CAT_LBL = 'Label'
 CH_CAT_LIST = (CH_CAT_PHC, CH_CAT_FL, CH_CAT_BIN, CH_CAT_LBL)
+
+DT_CAT_AREA = 'Area'
+#TYPE_AREA = DT_CAT_AREA #TODO: Remove `TYPE_AREA`
+DT_CAT_FL = 'Fluorescence'
+DT_CAT_LIST = (DT_CAT_AREA, DT_CAT_FL)

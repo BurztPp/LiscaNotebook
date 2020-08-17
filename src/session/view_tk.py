@@ -16,7 +16,6 @@ from . import const
 from .events import Event
 from .sessionopener_tk import SessionOpener
 from ..stack import metastack as ms
-from ..stack import types as ty
 from ..stackviewer_tk import StackViewer
 from .status import DummyStatus
 from .view import SessionView
@@ -337,11 +336,11 @@ class SessionView_Tk(SessionView):
                 idx_fluorescence = []
                 idx_segmentation = None
                 for i, spec in enumerate(self.session.stack.channels):
-                    if spec.type == ty.TYPE_PHASECONTRAST and not idx_phasecontrast:
+                    if spec.type == const.CH_CAT_PHC and not idx_phasecontrast:
                         idx_phasecontrast = i
-                    elif spec.type == ty.TYPE_FLUORESCENCE:
+                    elif spec.type == const.CH_CAT_FL:
                         idx_fluorescence.append(i)
-                    elif spec.type == ty.TYPE_SEGMENTATION and not idx_segmentation:
+                    elif spec.type == const.CH_CAT_BIN and not idx_segmentation:
                         idx_segmentation = i
                     else:
                         continue
@@ -352,7 +351,7 @@ class SessionView_Tk(SessionView):
                     btntxt = []
                     if spec.label:
                         btntxt.append(spec.label)
-                    if spec.type == ty.TYPE_FLUORESCENCE:
+                    if spec.type == const.CH_CAT_FL:
                         btntxt.append("{} {}".format(spec.type, len(idx_fluorescence)))
                     else:
                         btntxt.append(spec.type)
@@ -595,7 +594,7 @@ class SessionView_Tk(SessionView):
             for i in channels:
                 img = stack.get_image(channel=i, frame=frame)
                 img = stack.scale_img(img, scale=scale)
-                if stack.spec(i).type != ty.TYPE_SEGMENTATION:
+                if stack.spec(i).type != const.CH_CAT_BIN:
                     if self.var_darken_deselected.get():
                         # Darken deselected and untracked cells
                         if seg_img is None:
@@ -987,7 +986,7 @@ class SessionView_Tk(SessionView):
         self.micresmenu.entryconfig(MIC_RES_CUSTOM_IDX, label=new_label)
         if new_mic_name != self.var_microscope_res.get():
             self.var_microscope_res.set(new_mic_name)
-        #if self.session.trace_info[const.TYPE_AREA]['plot']:
+        #if self.session.trace_info[const.DT_CAT_AREA]['plot']:
         #    self.plot_traces()
 
     def open_session(self):
