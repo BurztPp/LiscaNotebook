@@ -1,3 +1,9 @@
+ST_FMT_BASE = 'base'
+ST_FMT_TIFF = 'tiff'
+ST_FMT_NUMPY = 'numpy'
+ST_FMT_ILASTIK = 'ilastik'
+ST_FMT_VIRTUAL = 'virtual'
+
 T = 'T'
 Z = 'Z'
 C = 'C'
