@@ -1,4 +1,5 @@
 import base64
+import queue
 import threading
 import time
 import traceback
@@ -47,5 +48,36 @@ def listen_for_events(qu):
             evt()
         except Exception:
             print(traceback.format_exc())
-            continue
 
+
+def poll_event_queue_tk(obj, qu, interval=10, evt_map=None):
+    """Poll event queue in tkinter mainloop.
+
+    The queue is polled all `interval` milliseconds.
+    Errors during event processing are ignored.
+    If `None` is read from `queue`, the polling stops.
+
+    Arguments:
+        obj -- calling tkinter widget
+        qu -- queue to be polled
+        interval -- poll interval (in milliseconds)
+        evt_map -- dict, keys are event commands (str), values are functions
+    """
+    if evt_map is None:
+        evt_map = {}
+    while True:
+        try:
+            evt = qu.get_nowait()
+            if evt is None:
+                return
+            elif isinstance(evt, str):
+                evt_map[evt]()
+            elif evt.fun is None:
+                evt(fun=evt_map[evt.cmd])
+            else:
+                evt()
+        except queue.Empty:
+            break
+        except Exception:
+            print(traceback.format_exc())
+    obj.after(interval, poll_event_queue_tk, obj, qu, interval, evt_map)

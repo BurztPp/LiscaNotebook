@@ -25,7 +25,7 @@ def open_stack(path, stack_format=None, **kwargs):
     if stack_format is None:
         if isinstance(path, os.PathLike):
             path = path.__fspath__()
-        ext = os.path.splitext[-1].lower()
+        ext = os.path.splitext(path)[-1].lower()
         if ext in ('.tif', '.tiff'):
             stack_format = const.ST_FMT_TIFF
         elif ext in ('.npy', '.npz'):

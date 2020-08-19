@@ -18,7 +18,7 @@ class Listeners:
     """
     def __init__(self, kinds=None, require_queue=False, debug=False):
         if kinds is None:
-            self.__kinds = None
+            self.__kinds = ()
         elif isinstance(kinds, str):
             self.__kinds = (str,)
         else:

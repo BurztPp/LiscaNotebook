@@ -58,6 +58,8 @@ class BaseStack:
         else:
             if not listeners_opt:
                 listeners_opt = dict()
+            if 'kinds' not in listeners_opt:
+                listeners_opt['kinds'] = self._listeners_kinds
             self.listeners = Listeners(**listeners_opt)
         assert all(k in self.listeners.kinds for k in (const.EVT_RESHAPE, const.EVT_CLOSE))
         self.__virtual = virtual

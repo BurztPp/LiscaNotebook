@@ -32,7 +32,7 @@ CMD_TOOL_BGCORR = 'cmd_tool_bgcorr'
 RESP_NEW_SESSION_ID = 'resp_new_session_id'
 
 # ChannelCollection
-EVT_CLOSE = 'ChannelCollection_close'
+#EVT_CLOSE = 'ChannelCollection_close' #TODO: delete
 EVT_STACK_ADDED = 'ChannelCollection_stack-added'
 EVT_STACK_RENAMED = 'ChannelCollection_stack-renamed'
 EVT_STACK_DROPPED = 'ChannelCollection_stack-dropped'

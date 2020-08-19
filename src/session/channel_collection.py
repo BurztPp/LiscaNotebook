@@ -8,6 +8,7 @@ from ..stack import const as sconst
 from ..stack import open_stack, BaseStack
 from .. import util
 
+
 class ChannelCollection(BaseStack):
     """This class provides all necessary data and methods for
     associating multiple stacks and ROIs with each other.
@@ -36,15 +37,17 @@ class ChannelCollection(BaseStack):
         list of IDs of loaded channels
         Defines the order of channels in this ChannelCollection
 
+    TODO: describe events fired by this class
+
     """
     def __init__(self):
         listeners_kinds = (
-                EVT_CLOSE,
-                EVT_STACK_ADDED,
-                EVT_STACK_RENAMED,
-                EVT_STACK_DROPPED,
-                EVT_CHANNELS_REORDERED,
-                EVT_CHANNEL_SPEC_CHANGE,
+                #const.EVT_CLOSE,
+                const.EVT_STACK_ADDED,
+                const.EVT_STACK_RENAMED,
+                const.EVT_STACK_DROPPED,
+                const.EVT_CHANNELS_REORDERED,
+                const.EVT_CHANNEL_SPEC_CHANGE,
                 )
         super().__init__(listeners_kinds=listeners_kinds)
         self.__stacks = {}
@@ -63,7 +66,7 @@ class ChannelCollection(BaseStack):
             self.drop_stack(stack_id)
 
 
-    def add_stack(stack, name=None, **kwargs):
+    def add_stack(self, stack, name=None, **kwargs):
         """Insert new stack into ChannelCollection.
 
         'stack': either path to stack file or reference to existing stack object
@@ -81,23 +84,28 @@ class ChannelCollection(BaseStack):
             if stack.id not in self.__stacks:
                 lid = stack.add_listener(self._hear_event, self.__queue)
                 self.__stacks[stack.id] = dict(ref=stack, name=name, listener_id=lid)
-                self.listeners.notify(const.EVT_STACK_ADDED, stack_id=stack.id)
+                msg = dict(event=const.EVT_STACK_ADDED, stack_id=stack.id)
+                self.listeners.notify(const.EVT_STACK_ADDED, message=msg)
 
 
-    def drop_stack(stack_id):
+    def drop_stack(self, stack_id):
         """Unload stack with ID `stack_id` and all associated channels"""
         with self.lock:
-            self.drop_channel(ch_id for ch_id, ch in self.__channels.items() if ch['stack'] == stack_id)
+            self.drop_channel(*(ch_id for ch_id, ch in self.__channels.items() if ch['stack'] == stack_id))
             stack = self.__stacks.pop(stack_id)
             stack['ref'].delete_listener(stack['listener_id'])
             stack['ref'].close()
+            msg = dict(event=const.EVT_STACK_DROPPED, stack_id=stack_id)
+            self.listeners.notify(const.EVT_STACK_DROPPED, message=msg)
 
 
-    def rename_stack(stack_id, name):
+    def rename_stack(self, stack_id, name):
         """Rename stack with ID `stack_id` to `name`"""
+        name = str(name)
         with self.lock:
             self.__stacks[stack_id]['name'] = name
-            self.listeners.notify(const.EVT_STACK_RENAMED, stack_id=stack_id)
+            msg = dict(event=const.EVT_STACK_RENAMED, stack_id=stack_id, name=name)
+            self.listeners.notify(const.EVT_STACK_RENAMED, message=msg)
             
 
     def add_channel(self, stack_id, index, position=None, name=None, category=None, description=None):
@@ -242,7 +250,7 @@ class ChannelCollection(BaseStack):
         """
         merged = OrderedDict()
         all_shapes = defaultdict(set)
-        for d in (*sconst.STACK.DIM, *sconst.IMG_DIM):
+        for d in (*sconst.STACK_DIM, *sconst.IMG_DIM):
             for sh in shapes:
                 all_shapes[d].add(sh.get(d))
         for d, s in all_shapes.items():
@@ -275,7 +283,7 @@ class ChannelCollection(BaseStack):
         
         Not thread-safe. Only call with `lock` acquired.
         """
-        merged = self._merge_shapes(self.__stacks[sid].shape_dict for sid in {ch['stack'] for ch in self.__channels.values()})
+        merged = self._merge_shapes(*(self.__stacks[sid].shape_dict for sid in {ch['stack'] for ch in self.__channels.values()}))
         if merged != self._shape:
             msg = dict(
                     event=sconst.EVT_RESHAPE,
