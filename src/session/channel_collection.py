@@ -42,7 +42,6 @@ class ChannelCollection(BaseStack):
     """
     def __init__(self):
         listeners_kinds = (
-                #const.EVT_CLOSE,
                 const.EVT_STACK_ADDED,
                 const.EVT_STACK_RENAMED,
                 const.EVT_STACK_DROPPED,
@@ -62,7 +61,7 @@ class ChannelCollection(BaseStack):
         """Close this ChannelCollection"""
         self.__queue.put_nowait(None)
         super().close()
-        for stack_id in self.__stacks.keys():
+        for stack_id in tuple(self.__stacks.keys()):
             self.drop_stack(stack_id)
 
 
@@ -138,7 +137,7 @@ class ChannelCollection(BaseStack):
             ch['index'] = index
 
             old_channel_order = self.__channel_order.copy()
-            self.__channel_order.insert(position, ch)
+            self.__channel_order.insert(position, ch_id)
             for i in range(position+1, len(self.__channel_order)):
                 self.__channels[self.__channel_order[i]]['position'] = i
             self.__channels[ch_id] = ch
@@ -254,7 +253,7 @@ class ChannelCollection(BaseStack):
             for sh in shapes:
                 all_shapes[d].add(sh.get(d))
         for d, s in all_shapes.items():
-            if d in sconst.STACK_DIM:
+            if d in (sconst.T, sconst.Z):
                 s -= {None, 1}
                 if len(s) > 1:
                     break
@@ -270,8 +269,6 @@ class ChannelCollection(BaseStack):
                     # Samples are not implemented
                     break
         else:
-            if not merged:
-                merged = None
             return merged
         raise ValueError("Shapes are not compatible")
 
@@ -283,11 +280,13 @@ class ChannelCollection(BaseStack):
         
         Not thread-safe. Only call with `lock` acquired.
         """
-        merged = self._merge_shapes(*(self.__stacks[sid].shape_dict for sid in {ch['stack'] for ch in self.__channels.values()}))
+        merged = self._merge_shapes(*(self.__stacks[sid]['ref'].shape_dict for sid in {ch['stack'] for ch in self.__channels.values()}))
+        merged[sconst.C] = len(self.__channel_order)
+        merged.move_to_end(sconst.C, last=False)
         if merged != self._shape:
             msg = dict(
                     event=sconst.EVT_RESHAPE,
-                    id=self.stack_id,
+                    id=self.id,
                     old=self._shape.copy() if self._shape is not None else None,
                     new=merged.copy() if merged is not None else None,
                     )

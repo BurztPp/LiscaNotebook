@@ -2,6 +2,7 @@ import queue
 from threading import Thread
 import tkinter as tk
 import tkinter.filedialog as tkfd
+import tkinter.messagebox as tkmsg
 import tkinter.ttk as ttk
 
 if __name__ == '__main__':
@@ -12,6 +13,7 @@ from ..session import const as sess_const
 from ..stack import const as stack_const
 from .. import util
 from . import scrollutil as scu
+from .channel_add_dialog import ChannelAddDialog
 
 
 class ChannelControlPane_Tk(tk.PanedWindow):
@@ -144,7 +146,7 @@ class ChannelControlPane_Tk(tk.PanedWindow):
             self.update_stackinfo()
         if cc:
             self.channel_collection = cc
-            self.channel_collectoin_lid = cc.add_listener(self.process_event, self.queue)
+            self.channel_collection_lid = cc.add_listener(self.process_event, self.queue)
 
 
     def process_event(self, message):
@@ -155,7 +157,7 @@ class ChannelControlPane_Tk(tk.PanedWindow):
     def open_stack(self):
         """Prompt user for a stack to open"""
         #TODO: more advanced dialog
-        fn = tkfd.askopenfilename(initialdir='res',
+        fn = tkfd.askopenfilenames(initialdir='res',
                 parent=self,
                 title="Select stack to open",
                 filetypes=(
@@ -167,7 +169,13 @@ class ChannelControlPane_Tk(tk.PanedWindow):
                     )
                 )
         if fn:
-            Thread(target=self.channel_collection.add_stack, args=(fn,)).start()
+            self._open_stack_thread(*fn)
+
+
+    @util.threaded
+    def _open_stack_thread(self, *fn):
+        for f in fn:
+            self.channel_collection.add_stack(f)
 
 
     def close_stack(self):
@@ -177,8 +185,13 @@ class ChannelControlPane_Tk(tk.PanedWindow):
             return
         active_stacks = set(v['stack'] for v in self.channel_collection.channels.values())
         if set(sel) & active_stacks:
-            #TODO ask for user confirmation
-            pass
+            msg = ("You are about to close a stack with an active channel. "
+                    "Closing the stack will close the channel, too. "
+                    "Do you want to proceed?")
+            is_ok = tkmsg.askyesno(title="Close stack",
+                    message=msg, icon=tkmsg.WARNING)
+            if not is_ok:
+                return
         for s in sel:
             self.channel_collection.drop_stack(s)
 
@@ -186,17 +199,34 @@ class ChannelControlPane_Tk(tk.PanedWindow):
     def reshape_stack(self):
         print("Reshape stack") #TODO
 
+
     def update_stackinfo(self):
         print("Update stackinfo") #TODO
 
+
     def add_channel(self):
-        print("Add channel") #TODO
+        """Show a dialog for selecting the channels to add"""
+        iid = self.stack_tree.selection()
+        if len(iid) != 1:
+            return
+        else:
+            iid = iid[0]
+        stack = self.channel_collection.stacks[iid]
+        sel = ChannelAddDialog.run(self, stack['ref'].n_channels, stack['name'])
+        for s in sel:
+            self.channel_collection.add_channel(iid, **s)
+
 
     def edit_channel(self):
         print("edit_channel") #TODO
 
+
     def drop_channel(self):
-        print("drop_channel") #TODO
+        """Drop selected channels"""
+        iids = self.chan_tree.selection()
+        if iids:
+            self.channel_collection.drop_channel(*iids)
+
 
     def stack_opened(self, msg):
         """Callback for 'stack_const.EVT_STACK_ADDED'"""
@@ -205,28 +235,61 @@ class ChannelControlPane_Tk(tk.PanedWindow):
         stack = self.channel_collection.stacks[stack_id]
         val = (stack['name'], stack['ref'].path)
         self.stack_tree.insert('', index='end', iid=stack_id, text=n, values=val)
+        self.stack_tree.selection_set(stack_id)
+
 
     def stack_renamed(self, msg):
         print("stack_renamed") #TODO
+
         
     def stack_closed(self, msg):
         """Remove stack from display when closed"""
         self.stack_tree.delete(msg['stack_id'])
+        for i, iid in enumerate(self.stack_tree.get_children()):
+            self.stack_tree.item(iid, text=str(i+1))
+
 
     def stack_reshaped(self, msg):
-        print("stack_reshaped") #TODO
+        """Update display when stack has been reshaped"""
+        if (not msg['old'] or not msg['new'] or 
+                msg['old'].get(stack_const.C) != msg['new'].get(stack_const.C)):
+            self.channels_reordered(None)
+        self.update_stackinfo()
 
-    def channel_added(self, msg):
-        print("channel_added") #TODO
 
     def channel_edited(self, msg):
         print("channel_edited") #TODO
 
-    def channels_reordered(self, msg):
-        print("channels_reordered") #TODO
 
-    def channel_dropped(self, msg):
-        print("channel_dropped") #TODO
+    def channels_reordered(self, msg=None):
+        """Re-draw channel list after channel order changes including addition or deletion.
+
+        Arguments:
+            msg -- message dict from event `stack_const.EVT_CHANNELS_REORDERED`
+
+        Providing `msg` may increase performance.
+        """
+        old_order = list(self.chan_tree.get_children())
+        channels = None
+        if msg:
+            new_order = msg['new']
+        else:
+            new_order = self.channel_collection.channel_order
+        for i, ch_id in enumerate(new_order):
+            try:
+                old_order.remove(ch_id)
+            except ValueError:
+                if channels is None:
+                    channels = self.channel_collection.channels
+                self.chan_tree.insert('', index=i, iid=ch_id, text=str(i+1),
+                        values=tuple(channels[ch_id][x] for x in ('name', 'category')))
+            else:
+                self.chan_tree.move(ch_id, '', i)
+                self.chan_tree.item(ch_id, text=str(i+1))
+        self.chan_tree.delete(*old_order)
+
+
+
 
 
 if __name__ == '__main__':
