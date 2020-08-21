@@ -14,6 +14,7 @@ from ..stack import const as stack_const
 from .. import util
 from . import scrollutil as scu
 from .channel_add_dialog import ChannelAddDialog
+from .channel_edit_dialog import ChannelEditDialog
 
 
 class ChannelControlPane_Tk(tk.PanedWindow):
@@ -213,12 +214,23 @@ class ChannelControlPane_Tk(tk.PanedWindow):
             iid = iid[0]
         stack = self.channel_collection.stacks[iid]
         sel = ChannelAddDialog.run(self, stack['ref'].n_channels, stack['name'])
-        for s in sel:
-            self.channel_collection.add_channel(iid, **s)
+        if sel:
+            for s in sel:
+                self.channel_collection.add_channel(iid, **s)
 
 
     def edit_channel(self):
-        print("edit_channel") #TODO
+        """Allow user to edit channel properties"""
+        sel = self.chan_tree.selection()
+        if len(sel) == 1:
+            iid = sel[0]
+        else:
+            return
+        ch = self.channel_collection.channels[iid]
+        res = ChannelEditDialog.run(self, ch['name'], ch['category'])
+        new_specs = {k: v for k, v in zip(('name', 'category'), res) if v is not None}
+        if new_specs:
+            self.channel_collection.change_channel_spec(iid, **new_specs)
 
 
     def drop_channel(self):
@@ -258,7 +270,20 @@ class ChannelControlPane_Tk(tk.PanedWindow):
 
 
     def channel_edited(self, msg):
-        print("channel_edited") #TODO
+        """Update channel display upon change.
+
+        Arguments:
+            msg -- message dict as from `stack_const.EVT_CHANNEL_SPEC_CHANGE`
+        """
+        iid = msg['id']
+        values = list(self.chan_tree.item(iid)['values'])
+        for k, v in msg['new'].items():
+            if k == 'name':
+                values[0] = v
+            elif k == 'category':
+                values[1] = v
+        if values:
+            self.chan_tree.item(iid, values=tuple(values))
 
 
     def channels_reordered(self, msg=None):
@@ -287,9 +312,6 @@ class ChannelControlPane_Tk(tk.PanedWindow):
                 self.chan_tree.move(ch_id, '', i)
                 self.chan_tree.item(ch_id, text=str(i+1))
         self.chan_tree.delete(*old_order)
-
-
-
 
 
 if __name__ == '__main__':

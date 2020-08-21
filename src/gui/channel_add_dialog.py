@@ -44,7 +44,7 @@ class ChannelAddDialog(tk.Toplevel):
 
         self.bind('<Return>', self.click_ok)
         self.bind('<KP_Enter>', self.click_ok)
-        self.bind('<Escape>', self.destroy)
+        self.bind('<Escape>', lambda *_: self.destroy())
 
 
     def activate(self, i):

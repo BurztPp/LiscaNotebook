@@ -17,7 +17,7 @@ def make_uid(obj):
     b = bytearray(16)
     b[:8] = id(obj).to_bytes(8, 'little')
     b[-8:] = time.perf_counter_ns().to_bytes(8, 'little')
-    return base64.b64encode(b).rstrip(b'=').decode()
+    return base64.b64encode(b, altchars=b'+-').rstrip(b'=').decode()
 
 
 def threaded(fun):

@@ -198,7 +198,7 @@ class ChannelCollection(BaseStack):
                         old=old_spec,
                         new={spec: ch[spec] for spec in old_spec.keys()}
                         )
-                self.listeners.notifiy(const.EVT_CHANNEL_SPEC_CHANGE, message=msg)
+                self.listeners.notify(const.EVT_CHANNEL_SPEC_CHANGE, message=msg)
 
 
     def change_channel_order(self, new_order):
