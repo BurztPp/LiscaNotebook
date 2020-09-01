@@ -20,6 +20,7 @@ from ..stack import metastack as ms
 from ..stack import types as ty
 from ..tracking import Tracker
 
+
 class SessionModel:
     #TODO: update this docstring
     """Session info container.
@@ -754,7 +755,9 @@ class SessionModel:
 
 
     def background_correction(self, outfile, status=None):
+        from contextlib import ExitStack
         from ..tools.bgcorr import perform_background_correction
+        from ..util_tmpdir import mktmpf
 
         i_chan_fl = None
         i_chan_bin = None
@@ -766,26 +769,30 @@ class SessionModel:
             if i_chan_fl is not None and i_chan_bin is not None:
                 break
 
-        # Get fluorescence channel
-        if i_chan_fl is None:
-            print("SessionModel.background_correction: no fluorescence channel found.") #DEBUG
-            return
-        c_fl0 = self.stack.get_image(channel=i_chan_fl, frame=0)
-        chan_fl = np.empty((self.stack.n_frames, self.stack.height, self.stack.width), dtype=c_fl0.dtype)
-        chan_fl[0, ...] = c_fl0
-        for t in range(1, self.stack.n_frames):
-            chan_fl[t, ...] = self.stack.get_image(channel=i_chan_fl, frame=t)
+        # Enter context for temporary files
+        with ExitStack() as stack:
 
-        # Get segmentation channel
-        if i_chan_bin is None:
-            outfile_bin = f"{os.path.splitext(outfile)[0]}_segmented.npz"
-            chan_bin = self.binarize_phc_stack(outfile=outfile_bin, status=status, return_result=True)
-        else:
-            c_bin0 = self.stack.get_image(channel=i_chan_bin, frame=0)
-            chan_bin = np.empty((self.stack.n_frames, self.stack.height, self.stack.width), dtype=c_bin0.dtype)
-            chan_bin[0, ...] = c_bin0
+            # Get fluorescence channel
+            if i_chan_fl is None:
+                print("SessionModel.background_correction: no fluorescence channel found.") #DEBUG
+                return
+            c_fl0 = self.stack.get_image(channel=i_chan_fl, frame=0)
+            tr_fl = stack.enter_context(mktmpf())
+            chan_fl = np.memmap(tr_fl, shape=(self.stack.n_frames, self.stack.height, self.stack.width), dtype=c_fl0.dtype, mode='w+')
+            chan_fl[0, ...] = c_fl0
             for t in range(1, self.stack.n_frames):
-                chan_bin[t, ...] = self.stack.get_image(channel=i_chan_bin, frame=t)
+                chan_fl[t, ...] = self.stack.get_image(channel=i_chan_fl, frame=t)
 
-        perform_background_correction(chan_fl=chan_fl, chan_bin=chan_bin, outfile=outfile, status=status)
+            # Get segmentation channel
+            tf_bin = stack.enter_context(mktmpf())
+            chan_bin = np.memmap(tf_bin, shape=chan_fl.shape, dtype=np.bool_, mode='w+')
+            if i_chan_bin is None:
+                outfile_bin = f"{os.path.splitext(outfile)[0]}_segmented.npz"
+                chan_bin[...] = self.binarize_phc_stack(outfile=outfile_bin, status=status, return_result=True)
+            else:
+                for t in range(self.stack.n_frames):
+                    chan_bin[t, ...] = self.stack.get_image(channel=i_chan_bin, frame=t)
+
+            perform_background_correction(chan_fl=chan_fl, chan_bin=chan_bin, outfile=outfile,
+                    exit_stack=stack.pop_all(), status=status)
 

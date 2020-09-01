@@ -2,7 +2,6 @@
 import json
 import os
 import re
-import tempfile
 import threading
 import xml.etree.ElementTree as ET
 
@@ -15,6 +14,7 @@ import PIL.ImageTk as piltk
 from ..roi import RoiCollection
 from ..listener import Listeners
 from ..session.status import DummyStatus
+from ..util_tmpdir import mktmpf
 
 
 class Stack:
@@ -55,7 +55,7 @@ class Stack:
             self._n_frames = n_frames
             self._n_channels = n_channels
             self._mode = np.dtype(dtype).itemsize * 8
-            self._tmpfile = tempfile.TemporaryFile()
+            self._tmpfile = mktmpf()
             self.img = np.memmap(filename=self._tmpfile,
                                  dtype=dtype,
                                  shape=(self._n_channels,
@@ -167,7 +167,7 @@ class Stack:
                 raise ValueError("Bad array shape: {}".format(arr.ndim))
             self._n_images = self._n_channels * self._n_frames
             try:
-                self._tmpfile = tempfile.TemporaryFile()
+                self._tmpfile = mktmpf()
                 self.img = np.memmap(filename=self._tmpfile,
                                      dtype=arr.dtype,
                                      shape=(self._n_channels,
@@ -221,7 +221,7 @@ class Stack:
                     self._n_frames = self._n_images
 
                 # Copy stack to numpy array in temporary file
-                self._tmpfile = tempfile.TemporaryFile()
+                self._tmpfile = mktmpf()
                 dtype = np.uint16 if self._mode == 16 else np.uint8
                 self.img = np.memmap(filename=self._tmpfile,
                                      dtype=dtype,
@@ -296,7 +296,7 @@ class Stack:
                 self._n_images = self._n_frames * self._n_channels
                 
                 # Copy stack to numpy array in temporary file
-                self._tmpfile = tempfile.TemporaryFile()
+                self._tmpfile = mktmpf()
                 self.img = np.memmap(filename=self._tmpfile,
                                      dtype=data5.dtype,
                                      shape=(self._n_channels,
@@ -352,7 +352,7 @@ class Stack:
             right = -right
         with self.image_lock:
             try:
-                new_tempfile = tempfile.TemporaryFile()
+                new_tempfile = mktmpf()
                 new_img = np.memmap(filename=new_tempfile,
                                     dtype=self.img.dtype,
                                     shape=(self._n_channels,
