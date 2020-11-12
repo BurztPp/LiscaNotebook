@@ -27,6 +27,8 @@ KEYS_SHOW_CONTOURS = {'Insert', 'KP_Insert'}
 KEYS_CHANNEL = {fmt.format(sym) for fmt in ('{}', 'KP_{}') for sym in range(1, 10)}
 KEYS_NEXT_FRAME = {'Right', 'KP_Right'}
 KEYS_PREV_FRAME = {'Left', 'KP_Left'}
+KEYS_FIRST_FRAME = {'Home', 'KP_Home'}
+KEYS_LAST_FRAME = {'End', 'KP_End'}
 
 FRAME_SCROLL_RATE_MAX = 8e9
 
@@ -225,6 +227,7 @@ class SessionView_Tk(SessionView):
                         self.var_show_roi_contours.set(not self.var_show_roi_contours.get())),
                     (KEYS_NEXT_FRAME | KEYS_PREV_FRAME, self._key_scroll_frames),
                     (KEYS_CHANNEL, self._key_change_channel),
+                    (KEYS_FIRST_FRAME | KEYS_LAST_FRAME, self._key_jump_frames),
                    )
         for keysyms, callback in bindings:
             for keysym in keysyms:
@@ -470,9 +473,15 @@ class SessionView_Tk(SessionView):
     def _key_scroll_frames(self, evt):
         """Callback for scrolling through channels"""
         if evt.keysym in KEYS_NEXT_FRAME:
-            cmd = 'up'
+            if evt.state & EVENT_STATE_CTRL:
+                cmd = 'up10'
+            else:
+                cmd = 'up'
         elif evt.keysym in KEYS_PREV_FRAME:
-            cmd = 'down'
+            if evt.state & EVENT_STATE_CTRL:
+                cmd = 'down10'
+            else:
+                cmd = 'down'
         else:
             return
         clock = Event.now()
@@ -480,6 +489,17 @@ class SessionView_Tk(SessionView):
             return
         self.last_frame_scroll = clock
         self.stackviewer._i_frame_step(cmd)
+
+    def _key_jump_frames(self, evt):
+        """Callback for jumping to first or last frame"""
+        if evt.keysym in KEYS_FIRST_FRAME:
+            i_frame = 0
+        elif evt.keysym in KEYS_LAST_FRAME:
+            i_frame = -1
+        else:
+            return
+        self.last_frame_scroll = Event.now()
+        self.stackviewer.i_frame_jump(i_frame)
 
     def _key_change_channel(self, evt):
         """Callback for displaying channels"""
