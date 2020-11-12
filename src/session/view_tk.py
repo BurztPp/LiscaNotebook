@@ -1,5 +1,6 @@
 import os
 import queue
+import re
 import time
 import tkinter as tk
 import tkinter.filedialog as tkfd
@@ -236,7 +237,10 @@ class SessionView_Tk(SessionView):
                 try:
                     self.root.bind(keysym, callback)
                 except Exception:
-                    print(f"Failed to register keysym '{keysym}'")
+                    if not (os.name == 'nt' and re.fullmatch(r'<KP_\D.*>', keysym)):
+                        # Cleaner start-up on Windows
+                        # (the <KP_\D.*> keysyms are not available in Windows)
+                        print(f"Failed to register keysym '{keysym}'")
 
     def mainloop(self):
         self.root.after(QUEUE_POLL_INTERVAL, self.poll_event_queue)
