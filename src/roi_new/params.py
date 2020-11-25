@@ -38,8 +38,8 @@ class RoiParameters:
 
         Override this when subclassing RoiParameters.
         `par_individual` holds the individual parameters of the given ROI.
-        This method should return an instance of RoiProperties or
-        of an subclass thereof.
+        This method should return an instance of a subclass of
+        RoiProperties.
         """
         raise NotImplementedError
 
