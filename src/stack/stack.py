@@ -16,6 +16,7 @@ from .roistack import RoiStack
 from ..listener import Listeners
 from ..session.status import DummyStatus
 
+SUPPORTED_DTYPES = ('bool', 'uint8', 'uint16', 'uint32', 'uint64', 'float16', 'float32', 'float64')
 
 class Stack(RoiStack):
     """Represents an image stack.
@@ -45,7 +46,7 @@ class Stack(RoiStack):
             self.img = arr
             self._n_channels, self._n_frames, self._height, self._width = arr.shape
             self._n_images = self._n_channels * self._n_frames
-            self._mode = arr.itemsize * 8
+            self._mode = self.dtype_str(arr.dtype)
             self._listeners.notify("image")
         elif None not in (width, height, n_frames, n_channels, dtype):
             # Create empty array
@@ -54,7 +55,7 @@ class Stack(RoiStack):
             self._height = height
             self._n_frames = n_frames
             self._n_channels = n_channels
-            self._mode = np.dtype(dtype).itemsize * 8
+            self._mode = self.dtype_str(dtype)
             self._tmpfile = tempfile.TemporaryFile()
             self.img = np.memmap(filename=self._tmpfile,
                                  dtype=dtype,
@@ -93,6 +94,14 @@ class Stack(RoiStack):
 
         # Notify listeners
         self._listeners.notify(kind=None)
+
+    @staticmethod
+    def dtype_str(dt):
+        """String representation of supported data type"""
+        dt = str(np.dtype(dt))
+        if dt not in SUPPORTED_DTYPES:
+            raise TypeError(f"Data type '{dt}' not supported.")
+        return dt
 
 
     def load(self, path, loader=None, status=None, channels=None, h5_key=None):
@@ -144,11 +153,11 @@ class Stack(RoiStack):
                 arr = np.load(self._path, mmap_mode='r', allow_pickle=False)
             elif ext == '.npz':
                 with np.load(self._path, mmap_mode='r', allow_pickle=False) as arr_file:
-                    arr = next(iter(arr_file.values())).astype(np.uint16, casting='unsafe')
+                    arr = next(iter(arr_file.values()))
             else:
-                raise TypeError("Unknown type: {}".format(ext))
+                raise TypeError("Unknown file extension: {}".format(ext))
             self._stacktype = 'numpy'
-            self._mode = arr.dtype.itemsize * 8
+            self._mode = self.dtype_str(arr.dtype)
             #TODO: check dimensions (swap height/width?)
             if arr.ndim == 2:
                 self._n_channels = 1
@@ -203,9 +212,7 @@ class Stack(RoiStack):
                 page0 = pages[0]
                 self._width = page0.imagewidth
                 self._height = page0.imagelength
-                self._mode = page0.bitspersample
-                if self._mode not in (1, 8, 16):
-                    raise TypeError(f"Image bit-depth '{self._mode}' is not supported.")
+                self._mode = self.dtype_str(page0.dtype)
 
                 # Get software-specific information
                 description = page0.description
@@ -221,9 +228,8 @@ class Stack(RoiStack):
 
                 # Copy stack to numpy array in temporary file
                 self._tmpfile = tempfile.TemporaryFile()
-                dtype = np.uint16 if self._mode == 16 else np.uint8
                 self.img = np.memmap(filename=self._tmpfile,
-                                     dtype=dtype,
+                                     dtype=page0.dtype,
                                      shape=(self._n_channels,
                                             self._n_frames,
                                             self._height,
@@ -272,6 +278,7 @@ class Stack(RoiStack):
                             idx[k] -= 1
                 self._height = data5.shape[idx['y']]
                 self._width = data5.shape[idx['x']]
+                self._mode = self.dtype_str(data5.dtype)
                 if idx.get('t') is None:
                     self._n_frames = 1
                 else:
@@ -293,7 +300,7 @@ class Stack(RoiStack):
                         channels = np.ravel(channels)
                         self._n_channels = channels.size
                 self._n_images = self._n_frames * self._n_channels
-                
+
                 # Copy stack to numpy array in temporary file
                 self._tmpfile = tempfile.TemporaryFile()
                 self.img = np.memmap(filename=self._tmpfile,
@@ -315,7 +322,7 @@ class Stack(RoiStack):
                                 current=1 + ch + fr * self._n_channels,
                                 total=self._n_images)
                         self.img[ch, fr, :, :] = data5[tuple(i)]
-                            
+
         except Exception as e:
             self._clear_state()
             print(str(e))
@@ -496,14 +503,25 @@ class Stack(RoiStack):
         :rtype: :py:class:`tkinter.PhotoImage`
         """
         with self.image_lock:
+            a0 = self.get_image(channel=channel, frame=frame)
             if convert_fcn:
-                a8 = convert_fcn(self.get_image(channel, frame))
-            elif self._mode == 8:
-                a8 = self.get_image(channel, frame)
-            elif self._mode == 16:
-                a16 = self.get_image(channel, frame)
-                a8 = np.empty(a16.shape, dtype=np.uint8)
-                np.floor_divide(a16, 256, out=a8)
+                a8 = convert_fcn(a0)
+            elif self._mode == 'uint8':
+                a8 = a0
+            elif self._mode == 'bool':
+                a8 = np.zeros(a0.shape, dtype=np.uint8)
+                a8[a0] = 255
+            elif self._mode.startswith('uint'):
+                a8 = a0 >> ((a0.itemsize - 1) * 8)
+            elif self._mode.startswith('float'):
+                #TODO: normalize to global maximum
+                a0_min = a0.min()
+                a0_max = a0.max()
+                if a0_min >= 0. and a0_max <= 1.:
+                    # Assume values in [0,1]
+                    a0_min = 0.
+                    a0_max = 1.
+                a8 = (256 / (a0_max - a0_min) * (a0 - a0_min)).astype(np.uint8)
             else:
                 raise ValueError(f"Illegal image mode: {self._mode}")
             return piltk.PhotoImage(pilimg.fromarray(a8, mode='L'))

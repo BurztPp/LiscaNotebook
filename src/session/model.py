@@ -341,7 +341,7 @@ class SessionModel:
             self.display_stack.set_properties(n_frames=meta.n_frames,
                                               width=meta.width,
                                               height=meta.height,
-                                              mode=8,
+                                              mode='uint8',
                                              )
             if self.rois:
                 for fr, rois in enumerate(self.rois):
