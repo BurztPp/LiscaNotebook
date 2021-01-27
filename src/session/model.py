@@ -569,7 +569,7 @@ class SessionModel:
                         color = const.PLOT_COLOR
                     l = ax.plot(t_vec, tr['val'][qty],
                             color=color, alpha=alpha, lw=lw, label=name,
-                            picker=(3 if is_interactive else None))
+                            picker=is_interactive, pickradius=3)
                     if is_interactive:
                         tr['plot'][qty] = l
 
