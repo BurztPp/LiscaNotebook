@@ -650,7 +650,6 @@ class SessionModel:
             with pd.ExcelWriter(os.path.join(save_dir, "Data.xlsx"), engine='xlsxwriter') as writer:
                 for name, df in df_dict.items():
                     df.to_excel(writer, sheet_name=name, index=False)
-                writer.save()
 
             # Save data to CSV file
             for name, df in df_dict.items():
