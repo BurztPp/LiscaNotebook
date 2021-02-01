@@ -40,26 +40,31 @@ def background_schwarzfischer(fluor_chan, bin_chan, div_horiz=7, div_vert=5, mem
     # of `2 * div_i - 1` tiles for each direction `i` in {`horiz`, `vert`}.
     # Due to integer rounding, the sizes may slightly vary between tiles.
     tiles_vert = _make_tiles(height, div_vert)
-    tiles_horiz = _make_tiles(height, div_horiz)
+    tiles_horiz = _make_tiles(width, div_horiz)
 
     # Interplolate background as cubic spline with each tile’s median as support point at the tile center
     supp = np.empty((tiles_horiz.size, tiles_vert.size))
-    if np.can_cast(fluor_chan, np.float32):
+    if np.can_cast(fluor_chan, np.float16):
+        dtype_interp = np.float16
+    elif np.can_cast(fluor_chan, np.float32):
         dtype_interp = np.float32
     else:
         dtype_interp = np.float64
-    bg_interp = np.empty_like(bin_chan, dtype=dtype_interp)
-    for t in range(fluor_chan.shape[0]):
+    bg_interp = np.empty_like(fluor_chan, dtype=dtype_interp) #TODO memmap? (see stack_corr)
+    bg_mean = np.empty(n_frames, dtype=dtype_interp)
+    for t in range(n_frames):
         print(f"Interpolate background in frame {t:3d} …")
         masked_frame = ma.masked_array(fluor_chan[t, ...], mask=bin_chan[t, ...])
         for iy, (y, sy) in enumerate(tiles_vert):
             for ix, (x, sx) in enumerate(tiles_horiz):
                 supp[ix, iy] = ma.median(masked_frame[sy, sx])
         bg_spline = scint.RectBivariateSpline(x=tiles_horiz['center'], y=tiles_vert['center'], z=supp)
-        bg_interp[t, ...] = bg_spline(x=range(width), y=range(height)).T
+        patch = bg_spline(x=range(width), y=range(height)).T
+        bg_interp[t, ...] = patch
+        bg_mean[t] = patch.mean()
+    bg_mean = bg_mean.reshape((-1, 1, 1))
 
     # Calculated background using Schwarzfischer’s formula
-    bg_mean = np.mean(bg_interp, axis=(1,2)).reshape((-1, 1, 1))
-    gain = np.median(bg_interp / bg_mean, axis=0)
-    stack_corr = (fluor_chan - bg_interp) / gain
+    stack_corr = np.empty_like(bg_interp) #TODO memmap?
+    stack_corr = (fluor_chan - bg_interp) / np.median(bg_interp / bg_mean, axis=0)[np.newaxis, ...] # TODO divide into tiles
     return stack_corr
