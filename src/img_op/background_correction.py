@@ -84,6 +84,42 @@ def _get_arr(shape, dtype, mem_lim, memmap_dir):
     return arr_interp, arr_temp, iter_temp()
 
 
+def _lin_reg_gain(bg_int, bg_mean, temp, gain):
+    """Calcuate gain via linear regression.
+
+    Pixelwise linear regression is performed according to:
+        gain = cov(bg_int, bg_mean) / var(bg_mean)
+             = (mean(bg_int * bg_mean) - mean(bg_int) * mean(bg_mean))
+                     / (mean(bg_mean**2) - mean(bg_mean)**2),
+    wherein the mean(...) is calculated along the time dimension only.
+
+    The offset could be calculated according to
+        offset = mean(bg_inter) - gain * mean(bg_mean).
+    However, the offset is not needed.
+
+    The less readable form is chosen to save memory.
+
+    Arguments:
+        bg_int -- (frames x height x width) array of interpolated background
+        bg_mean -- (frames x 1 x 1) array of mean background per frame
+        temp -- (frames x height x width) array for temporary storage
+        gain -- (1 x height x width) array with calculated gain
+    """
+    mean_mean = np.mean(bg_mean)
+
+    # numerator
+    np.multiply(bg_int, bg_mean, out=temp)
+    np.mean(temp, axis=0, keepdims=True, out=temp[0:1, ...])
+    np.mean(bg_int, axis=0, keepdims=True, out=gain)
+    np.multiply(gain, mean_mean, out=gain)
+    np.subtract(temp[0:1, ...], gain, out=gain)
+
+    # denominator
+    np.divide(gain, np.mean(bg_mean**2) - mean_mean**2, out=gain)
+    breakpoint()
+    return
+
+
 def background_schwarzfischer(fluor_chan, bin_chan, div_horiz=7, div_vert=5, mem_lim=None, memmap_dir=None):
     """Perform background correction according to Schwarzfischer et al.
 
@@ -144,10 +180,11 @@ def background_schwarzfischer(fluor_chan, bin_chan, div_horiz=7, div_vert=5, mem
     #   median(interpolated_background / mean_background)
     # This “simple” calculation may consume more memory than available.
     # Therefore, a less readable but more memory-efficient command flow is used.
+    gain = np.empty((1, height, width), dtype=dtype_interp)
     for st, sl in iter_temp:
-        np.divide(bg_interp[:, sl, :], bg_mean, out=arr_temp[:, :st, :])
+        _lin_reg_gain(bg_interp[:, sl, :], bg_mean, arr_temp[:, :st, :], gain)
         np.subtract(fluor_chan[:, sl, :], bg_interp[:, sl, :], out=bg_interp[:, sl, :])
-        np.divide(bg_interp[:, sl, :], np.median(arr_temp[:, :st, :], axis=0, keepdims=True), out=bg_interp[:, sl, :])
+        np.divide(bg_interp[:, sl, :], gain, out=bg_interp[:, sl, :])
 
     # `bg_interp` now holds the corrected image
     return bg_interp
