@@ -5,10 +5,13 @@ import weakref
 from ..stack import const as stconst
 from ..util import make_uid
 
+from . import const
+
+
 class BaseRoi:
     """Base class for representing a region-of-interest (ROI).
 
-    'group' is None or a group. Will be stored as weakref.
+    'group' is None or a group in which this instance is a member. Will be stored as weakref.
     'color' is None or a string of a hex RGB color ('#rrggbb')
     'visible' is a boolean flag whether to display the ROI.
     
@@ -134,22 +137,36 @@ class Roi(BaseRoi):
 
 class RoiGroup(BaseRoi):
     """Class for grouping related Roi instances.
+
+    'parent' is a group in which the current instance is listed as a
+    subgroup. The parent is internally saved as weak reference, but
+    the property returns either a strong reference or None.
+    'subgroups' is a set of subordinate groups.
+    'dimensions' is a string that is empty or contains const.T and/or const.Z.
+    Members (ROIs) must be inserted and retrieved specifying the given
+    dimensions; use `slice(None)` (or equivalent `const.DIM_ALL`) for
+    all values of a dimension.
     
     """
     __slots__ = ('__parent_ref', '__dimensions', '__rois', '__subgroups', '__tacking_class')
-    
-    def __init__(self, parent=None, dimensions=None, rois=None, subgroups=None, tracking_class=None, **kwargs):
+
+    def __init__(self, parent=None, dimensions=None, subgroups=None, tracking_class=None, **kwargs):
         super().__init__(**kwargs)
         self.parent = parent
         self.__subgroups = set()
+        self.__rois = defaultdict(set)
         if subgroups:
             self.add_subgroups(*subgroups)
+        if dimensions:
+            self.__dimensions = ''.join(d for d in dimensions if d in const.ROI_DIMENSIONS)
+        else:
+            self.__dimensions = ''
 
     @property
     def parent(self):
         with self.__lock:
             return self.__parent_ref()
-    
+
     @parent.setter
     def parent(self, new):
         with self.__lock:
@@ -167,17 +184,66 @@ class RoiGroup(BaseRoi):
     def subgroups(self):
         with self.__lock:
             return self.__subgroups.copy()
-            
+
     def add_subgroups(self, **new):
         with self.__lock:
             self.__subgroups |= new
-            
+
     def remove_subgroups(self, **old):
         with self.__lock:
             self.__subgroups -= old
 
+    @property
+    def dimensions(self):
+        return self.__dimensions
 
+    def _check_dimensions(self, T, Z):
+        frames = []
+        if const.T in self.__dimensions:
+            assert T is not None
+            frames.append(const.DIM_ALL)
+            if T != const.DIM_ALL:
+                frames.append(T)
+        slices = []
+        if const.Z in self.__dimensions:
+            assert Z is not None
+            slices.append(const.DIM_ALL)
+            if Z != const.DIM_ALL:
+                slices.append(Z)
+        return frames, slices
 
+    def get_rois(self, *, T=None, Z=None):
+        """Query members of this group.
+
+        Returns a set of Roi instances registered as members of this group
+        for the given coordinates. Use the `dimensions` property to get
+        the required dimensions.
+        """
+        frames, slices = self._check_dimensions(T, Z)
+        with self.__lock:
+            if not self.__dimensions:
+                return self.__rois[None].copy()
+            elif not slices:
+                return {*self.__rois[t] for t in frames}
+            elif not frames:
+                return {*self.__rois[z] for z in slices}
+            else:
+                return {*self.__rois[(t,z)] for t in frames for z in slices}
+
+    def register_rois(self, *rois, *, T=None, Z=None):
+        frames, slices = self._check_dimensions(T, Z)
+        if len(frames) > 1 or len(slices) > 1:
+            raise ValueError("Too many coordinates given.")
+        with self.__lock:
+            if not self.__dimensions:
+                self.__rois[None].update(rois)
+            elif not slices:
+                self.__rois[frames[0]].update(rois)
+            elif not frames:
+                self.__rois[slices[0]].update(rois)
+            else:
+                self.__rois[(frames[0], slices[0])].update(rois)
+        
 
 ## OLD STUFF:
 
