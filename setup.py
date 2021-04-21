@@ -28,4 +28,7 @@ setup(name='PyAMA',
         "numba",
         "psutil",
     ],
+    entry_points={
+        'console_scripts': ['pyama=pyama.main:main'],
+    },
 )

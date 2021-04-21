@@ -2,15 +2,5 @@ name: pyama
 dependencies:
   - python=3.8
   - pip
-  - numpy
-  - scipy
-  - matplotlib
-  - pillow
-  - scikit-image
-  - pandas
-  - XlsxWriter
-  - h5py
-  - numba
-  - psutil
   - pip:
-    - tifffile
+    - "git+https://github.com/SoftmatterLMU-RaedlerGroup/pyama.git#egg=pyama"

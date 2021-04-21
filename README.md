@@ -5,12 +5,9 @@ and for reading out single-cell time courses of the cell area and the fluorescen
 ### Installation
 Python 3.8 with `tkinter` is required.
 
-Clone/pull/download this repository and make the base directory of the repository your working directory by using the `cd` command.
-Then install the necessary dependencies either via anaconda or via pip, whatever you prefer.
-
 #### Anaconda users
 If you are using [Anaconda](https://www.anaconda.com), you can install the dependencies with the following command,
-which will create a new environment called `pyama` and install all necessary packages:
+which will create a new environment called `pyama` and install all necessary packages (untested yet):
 
 ```
 conda env create -f environment.yml
@@ -25,36 +22,26 @@ If you prefer using venv/pip, you can use this command
 mkdir env
 python -m venv env
 source env/bin/activate
-pip install -r requirements.txt
+pip install git+https://github.com/SoftmatterLMU-RaedlerGroup/pyama.git#egg=pyama
 ```
 
 #### Desktop file installation for Linux users (experimental)
-Linux users can create an application menu entry for PyAMA by adjusting the paths in the files `pyama.sh` and `pyama.desktop` and creating a symlink to (or copying) `pyama.desktop` in either `/usr/share/applications` (for global installation) or `~/.local/share/applications` (for user-specific installation).
+Linux users can create an application menu entry for PyAMA by adjusting the Exec path in the file `pyama.desktop` and creating a symlink to (or copying) `pyama.desktop` in either `/usr/share/applications` (for global installation) or `~/.local/share/applications` (for user-specific installation).
 
 
 ### Usage
 #### Starting PyAMA
 Make sure that the environment containing PyAMA is activated.
-Open the program with by executing the file `__main__.py` in the base directory of
-this repository.
-For simplicity, you can simply call the directory containing the file, and python
-will find the file for you. For example (if you are in the parent directory of this repository):
+You can then start PyAMA by executing:
 
 ```
-python pyama
-```
-
-Alternatively, if your current working directory is the base directory of this repository,
-you can execute
-
-```
-python __main__.py
+python -m pyama
 ```
 
 or simply:
 
 ```
-python .
+pyama
 ```
 
 Upon starting PyAMA, an empty window opens.
