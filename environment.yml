@@ -1,6 +1,6 @@
 name: pyama
 dependencies:
-  - python=3.7
+  - python=3.8
   - pip
   - numpy
   - scipy
@@ -11,5 +11,6 @@ dependencies:
   - XlsxWriter
   - h5py
   - numba
+  - psutil
   - pip:
     - tifffile
