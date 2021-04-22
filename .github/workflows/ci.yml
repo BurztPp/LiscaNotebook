@@ -1,0 +1,51 @@
+---
+name: CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  Skip:
+    if: "contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip CI 🚫
+        run: echo skip ci
+  
+  tests:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    name: "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
+    runs-on: "${{ matrix.os }}"
+    
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.8", "3.9"]
+        os: ["ubuntu-20.04", "macos-latest", "windows-latest"]
+
+    steps:
+      - uses: "actions/checkout@v2"
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: "actions/setup-python@v2"
+        with:
+          python-version: "${{ matrix.python-version }}"
+
+      - name: "Install dependencies"
+        run: |
+          if ["${{ runner.os }} == "Linux"] || ["${{ runner.os }} == "macOS"]; then 
+            set -xe
+          fi
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade virtualenv tox tox-gh-actions          
+        shell: "bash"
+
+      - name: "Run tox targets for ${{ matrix.python-version }}"
+        run: "python -m tox"
+
