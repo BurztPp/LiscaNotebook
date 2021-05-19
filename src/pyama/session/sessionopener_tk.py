@@ -3,8 +3,8 @@ import tkinter.ttk as ttk
 import tkinter.filedialog as tkfd
 
 from . import const
-from .status import DummyStatus
-from .events import Event
+from ..util.status import DummyStatus
+from ..util.events import Event
 from ..stack import Stack
 from ..stack import metastack as ms
 

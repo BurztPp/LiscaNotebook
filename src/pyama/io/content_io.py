@@ -13,7 +13,7 @@ import skimage.draw as skd
 
 from .roi import Roi
 from ..roi import ContourRoi
-from ..session.status import DummyStatus
+from ..util.status import DummyStatus
 
 ZIP_JSON_NAME = 'session.json'
 

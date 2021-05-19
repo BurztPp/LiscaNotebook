@@ -15,7 +15,7 @@ import string
 import sys
 import threading
 import traceback
-from .listener import Listeners
+from .util.listener import Listeners
 
 
 PERFORM_KINDS = {"conf", "run", "loop_first", "loop_next", "loop_end"}

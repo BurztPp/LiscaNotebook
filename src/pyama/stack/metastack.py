@@ -8,7 +8,7 @@ import skimage.transform as sktrans
 
 from .stack import Stack
 from .roistack import RoiStack
-from ..listener import Listeners
+from ..util.listener import Listeners
 
 
 @dataclass

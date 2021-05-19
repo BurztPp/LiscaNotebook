@@ -14,11 +14,11 @@ from matplotlib.backend_bases import MouseButton
 import numpy as np
 
 from . import const
-from .events import Event
 from .sessionopener_tk import SessionOpener
 from ..stack import metastack as ms
 from ..stackviewer_tk import StackViewer
-from .status import DummyStatus
+from ..util.events import Event
+from ..util.status import DummyStatus
 from .view import SessionView
 
 KEYS_NEXT_CELL = {'Down', 'KP_Down'}

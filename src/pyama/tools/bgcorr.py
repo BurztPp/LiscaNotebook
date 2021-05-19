@@ -4,7 +4,7 @@ import tifffile
 
 from .binarize import binarize_phasecontrast_stack
 from ..img_op import background_correction as bgcorr
-from ..session.status import DummyStatus
+from ..util.status import DummyStatus
 
 def perform_background_correction(chan_fl, chan_bin, outfile, status=None):
     if status is None:
