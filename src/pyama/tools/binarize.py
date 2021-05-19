@@ -4,7 +4,7 @@ import time
 import numpy as np
 import tifffile as tiff
 
-from ..session.status import DummyStatus
+from ..util.status import DummyStatus
 from ..img_op.coarse_binarize_phc import binarize_frame
 
 def binarize_phasecontrast_stack(stack, i_channel, outfile=None, status=None, return_result=False):

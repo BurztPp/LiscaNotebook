@@ -2,8 +2,8 @@ from collections import namedtuple, OrderedDict
 import threading
 
 from . import const
-from ..listener import Listeners
 from ..util import make_uid
+from ..util.listener import Listeners
 
 
 class BaseStack:

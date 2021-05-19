@@ -5,7 +5,7 @@ import numpy as np
 
 from .collection import RoiCollection
 from .rect import RectRoi
-from ..listener import Listeners
+from ..util.listener import Listeners
 
 X = 0
 Y = 1

@@ -4,7 +4,7 @@ import numpy as np
 import skimage.measure as skmeas
 
 from .stack import Stack
-from .session.status import DummyStatus
+from .util.status import DummyStatus
 
 IGNORE_SIZE = 300
 MIN_SIZE = 1000

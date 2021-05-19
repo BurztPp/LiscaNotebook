@@ -14,7 +14,7 @@ import numpy as np
 from .contrast import ContrastAdjuster
 from .gui_tk import new_toplevel
 from .roi import RectRoiGridAdjuster
-from .session.events import Event
+from .util.events import Event
 from .stack import Stack
 
 # Define constants

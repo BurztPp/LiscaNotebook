@@ -2,10 +2,10 @@ import queue
 import threading
 
 from ..util import threaded
+from ..util.events import Event
+from ..util.status import Status
 from . import const
-from .events import Event
 from .model import SessionModel
-from .status import Status
 
 
 class SessionController:

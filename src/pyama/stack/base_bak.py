@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 
-from ..listener import Listeners
+from ..util.listener import Listeners
 
 class BaseStack:
     is_composite = None

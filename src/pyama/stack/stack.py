@@ -13,8 +13,8 @@ import PIL.ImageTk as piltk
 
 from ._parse_ome import parse_ome
 from .roistack import RoiStack
-from ..listener import Listeners
-from ..session.status import DummyStatus
+from ..util.listener import Listeners
+from ..util.status import DummyStatus
 
 SUPPORTED_DTYPES = ('bool', 'uint8', 'uint16', 'uint32', 'uint64', 'float16', 'float32', 'float64')
 
