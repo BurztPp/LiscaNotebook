@@ -1,0 +1,25 @@
+name: create and deploy docs
+
+on:
+  push:
+    branches:
+      - devel
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          echo $(pwd)
+          echo $(ls)
+      - name: Build docs
+        uses: mattnotmitt/doxygen-action@v1.3.0
+        with:
+          working-directory: 'docs'
+      - run: echo $(ls docs)
+      - name: Push to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/_build/html
