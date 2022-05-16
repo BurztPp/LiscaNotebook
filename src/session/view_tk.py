@@ -140,9 +140,11 @@ class SessionView_Tk(SessionView):
         self.toolmenu = tk.Menu(menubar)
         menubar.add_cascade(label="Tools", menu=self.toolmenu)
         self.toolmenu.add_command(label=TOOL_LABEL_BINARIZE, command=self.binarize, state=tk.DISABLED)
+        self.toolmenu.add_command(label='Cellpose segmentation', command=self.cellpose_binarize)
         self.toolmenu.add_command(label="Pickle maximum bounding box", command=self._pickle_max_bbox)
         self.toolmenu.add_command(label="Background correction…", command=self._background_correction)
         settmenu = tk.Menu(menubar)
+
         menubar.add_cascade(label="Settings", menu=settmenu)
         settmenu.add_checkbutton(label="Display frame indicator", variable=self.var_show_frame_indicator)
         settmenu.add_checkbutton(label="Display cell contours", variable=self.var_show_roi_contours)
@@ -1046,6 +1048,28 @@ class SessionView_Tk(SessionView):
                    outfile=outfile,
                    status=self.status,
                    )
+    
+    def cellpose_binarize(self):
+        # Get filename
+        options = {'defaultextension': '.tif',
+                   'filetypes': ( ("Numpy", '*.npy *.npz'), ("TIFF", '*.tif *.tiff'), ("All files", '*')),
+                   'parent': self.root,
+                   'title': "Choose output file for binarized phase-contrast stack",
+                  }
+        if self.save_dir:
+            options['initialdir'] = self.save_dir
+        outfile = tkfd.asksaveasfilename(**options)
+        if not outfile:
+            return
+
+        # Start binarization
+        Event.fire(self.control_queue,
+                   const.CMD_TOOL_CELLPOSE_BINARIZE,
+                   session=self.session,
+                   outfile=outfile,
+                   status=self.status,
+                   )
+
 
     def _background_correction(self):
         """Write a background-corrected version of the fluorescence channel"""

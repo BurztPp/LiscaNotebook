@@ -78,3 +78,4 @@ def binarize_frame(img, mask_size=3):
     img_bin = smg.binary_erosion(img_bin, border_value=1)
 
     return img_bin
+

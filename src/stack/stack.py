@@ -420,6 +420,7 @@ class Stack:
 
         idx_C = dim_order.find('C')
         idx_T = dim_order.find('T')
+        print(idx_C, idx_T)
         if idx_C == -1 or idx_T == -1:
             raise ValueError("Bad 'DimensionOrder' value in OME description.")
         if idx_C < idx_T:

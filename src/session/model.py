@@ -751,6 +751,31 @@ class SessionModel:
                              )
         return result
 
+    def cellpose_segmentation(self, *, outfile=None, status=None, return_result=False):
+        from ..tools.binarize import segment_with_cellpose
+
+        # Get index of first phase-contrast channel
+        for i, spec in enumerate(self.stack.channels):
+            if spec.type == ty.TYPE_PHASECONTRAST:
+                i_channel = i
+                break
+        else:
+            print("SessionModel.binarize_phc_stack: no phase-contrast channel found.") #DEBUG
+            return
+
+        spec = self.stack.channels[i_channel]
+        stack = self.stack.stack(spec.name)
+        phc_channel = spec.channel
+        result = segment_with_cellpose(stack=stack,
+                              i_channel=phc_channel,
+                              outfile=outfile,
+                              status=status,
+                              return_result=return_result,
+                             )
+        return result
+
+
+
 
     def background_correction(self, outfile, status=None):
         from ..tools.bgcorr import perform_background_correction

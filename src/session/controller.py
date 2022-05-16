@@ -45,6 +45,7 @@ class SessionController:
             const.CMD_READ_SESSION_FROM_DISK: self.read_session_from_disk,
             const.CMD_SET_MICROSCOPE: self.set_microscope,
             const.CMD_TOOL_BINARIZE: self.binarize_phasecontrast_stack,
+            const.CMD_TOOL_CELLPOSE_BINARIZE: self.cellpose_binary_segmentation,
             const.CMD_TOOL_BGCORR: self.background_correction,
             }
 
@@ -220,6 +221,10 @@ class SessionController:
     @threaded
     def binarize_phasecontrast_stack(self, session, **kwargs):
         session.binarize_phc_stack(**kwargs)
+
+    @threaded
+    def cellpose_binary_segmentation(self, session, **kwargs):
+        session.cellpose_segmentation(**kwargs)
 
     @threaded
     def background_correction(self, session, **kwargs):
