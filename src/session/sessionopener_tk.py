@@ -358,6 +358,10 @@ class SessionOpener:
         session_stacks = []
         self.frame.destroy()
         used_stacks = set()
+        print(self.stack_getter())
+        #import sys
+        #sys.exit()
+
         for ch in self.channels:
             x = {}
             stack = self.stack_getter(ch['stack_id'])

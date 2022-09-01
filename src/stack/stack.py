@@ -235,6 +235,9 @@ class Stack:
                                             self._n_frames,
                                             self._height,
                                             self._width))
+                print(self.img.nbytes)
+                print(self.n_channels, self._tmpfile)
+                print(self.img.shape)
                 for i in range(self._n_images):
                     current_status.reset("Reading image", current=i+1, total=self._n_images)
                     ch, fr = self.convert_position(image=i)

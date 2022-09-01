@@ -1,7 +1,6 @@
 #! /bin/env python3
 import os
 import sys
-
 # Define meta information
 __version__ = "0.1.8"
 __author__ = "Daniel Woschée"

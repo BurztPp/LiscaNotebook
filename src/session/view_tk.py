@@ -1,3 +1,4 @@
+DEBUG=True
 import os
 import queue
 import re
