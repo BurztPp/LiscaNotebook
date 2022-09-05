@@ -36,7 +36,7 @@ class Segmentation:
                     pretrained_model = os.path.join(path_to_models,dic[pretrained_model]['path'])
 
             self.model = models.CellposeModel(gpu=gpu, pretrained_model=pretrained_model)
-        
+            
         
     def segment_image(self, image, diameter=None, flow_threshold=None, mask_threshold=None):
 
@@ -44,6 +44,7 @@ class Segmentation:
         flow_threshold=self.flow_threshold if flow_threshold is None else flow_threshold
         mask_threshold=self.mask_threshold if mask_threshold is None else mask_threshold
 
-        mask =  self.model.eval(image, diameter=diameter, channels=None, flow_threshold=flow_threshold, mask_threshold=mask_threshold, normalize=True, verbose=self.verbose)[0].astype('uint8')
+        mask = self.model.eval(image, diameter=diameter, channels=None, flow_threshold=flow_threshold, mask_threshold=mask_threshold, normalize=True, verbose=self.verbose)[0].astype('uint8')
+
 
         return mask

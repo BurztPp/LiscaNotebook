@@ -10,13 +10,13 @@ import pandas as pd
 
 def get_centroids(masks, f_image):
 
-    print('hi')
     nframes = masks.shape[0]
     ids=np.unique(masks)
     ids = ids[ids!=0]
     
-    df = pd.DataFrame(columns=['id', 'frame', 'x', 'y', 'fluorescence'])
-    for frame in range(nframes):
+    df = pd.DataFrame(columns=['id', 'frame', 'x', 'y', 'fluorescence', 'cyto_locator', 'area'])
+    print('Computing centroids')
+    for frame in tqdm(range(nframes)):
         for identifier in ids:
             mask = masks[frame]
             count = np.sum(mask==identifier)
@@ -29,7 +29,8 @@ def get_centroids(masks, f_image):
             
             data = {'id': [identifier],
             'frame':[frame],
-            'x':[x], 'y':[y], 'fluorescence': [fluorescence]}
+            'x':[x], 'y':[y], 'fluorescence': [fluorescence], 'cyto_locator': identifier,
+            'area': count}
 
             new_df = pd.DataFrame.from_dict(data)
 
@@ -64,21 +65,18 @@ def track(masks, f_image, track_memory=15, max_travel=5, min_frames=10, pixel_to
     t : TYPE
 
         DESCRIPTION.
-
-
     """
 
     max_travel = np.round(max_travel) #Maximum distance between nuclei in subsequent frames
 
     if not verbose:
-
         tp.quiet()
 
     if verbose:
         print('Getting centroids...')
 
-
     f = get_centroids(masks, f_image)
+    print('Tracking')
     if verbose:
         print('Tracking')
     t = tp.link(f, max_travel, memory=track_memory)

@@ -1,23 +1,23 @@
 import sys
 from tqdm import tqdm
 sys.path.append('..')
-#from . import functions
-from .segmentation import segment
-from celltracker.omero import Omero
+from . import functions
+from .segmentation import Segmentation
+#from celltracker.omero import Omero
 import numpy as np
 import os
 import pandas as pd
 import skvideo.io
 import json
 from nd2reader import ND2Reader
-from .segmentation import segment
+from .segmentation import Segmentation
 from .video_writer import Mp4writer
 from lisca import tracking
 
 
 class Track:
     
-    def __init__(self, path_out, data_path, bf_channel, fl_channels,  bf_file=None, nucleus_file=None, nd2_file=None, lanes_file=None, frame_indices=None, max_memory=None, dataset_id=None, image_id=None, ome_host='omero.physik.uni-muenchen.de', ome_user_name=None, ome_password=None, fov=None, manual=False):
+    def __init__(self, path_out, data_path, bf_channel, fl_channels, fov, bf_file=None, nucleus_file=None, nd2_file=None, lanes_file=None, frame_indices=None, max_memory=None, dataset_id=None, image_id=None, ome_host='omero.physik.uni-muenchen.de', ome_user_name=None, ome_password=None, manual=False):
         """
         A class to run full tracking part of the pipeline on one field of view. The class should contain the methods for the bf segmentation, nucleus tracking, and the rearranging of the nuclei with the bf contours. The final output should be a set of 3darrays (frame_number, nuclear_position, front, rear) each for one particle.
 
@@ -60,8 +60,7 @@ class Track:
         self.fov = fov
         self.manual=manual
         self.bf_channel=bf_channel
-        self.fl_channels=[*fl_channels.values()]
-        self.fl_labels=[*fl_channels]
+        self.fl_channels=[*fl_channels]
 
         if dataset_id is not None:
 
@@ -97,7 +96,7 @@ class Track:
             
             self.height, self.width = f.sizes['y'], f.sizes['x']
             self.frame_indices = np.arange(0, self.n_images)
-            channels = f.metadata['channels']
+            self.channel_labels = f.metadata['channels']
             
 
         elif bf_file.endswith('.mp4'):
@@ -129,7 +128,7 @@ class Track:
 
  
     
-    def read_image(self, frames, channel):
+    def read_image(self, c, frames=None):
 
         manual=self.manual
 
@@ -144,12 +143,8 @@ class Track:
 
         if self.nd2_file is not None:
 
-            if channel==0 or channel=='bf':
-                c = self.bf_channel
-                return functions.read_nd2(os.path.join(self.data_path, self.nd2_file), self.fov, frames, c, manual=self.manual)
-            if channel==1 or channel=='nucleus':
-                c = self.nucleus_channel
-                return functions.read_nd2(os.path.join(self.data_path, self.nd2_file), self.fov, frames, c, manual=self.manual)
+            return functions.read_nd2(os.path.join(self.data_path, self.nd2_file), self.fov, frames, c=c, manual=self.manual)
+            
 
         if self.bf_file.endswith('.mp4'):
 
@@ -165,7 +160,7 @@ class Track:
             if channel==1 or channel=='nucleus':
                     return imread(os.path.join(self.data_path, self.nucleus_file), key=frames)
 
-    def segment(self, pretrained_model=None, flow_threshold=0.8, mask_threshold=-2, gpu=True, model_type='bf', bf_diameter=29, verbose=False):
+    def segment(self, pretrained_model=None, flow_threshold=0.8, mask_threshold=-2, gpu=True, model_type='bf', diameter=29, verbose=False):
 
         self.metadata.update(locals())
         self.metadata.pop('self')
@@ -174,27 +169,44 @@ class Track:
 
         writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks.mp4'))
         
-        for frame in self.n_images:
-            
-            image = self.read_image(frame, channel='bf')
-            mask = segment(image, gpu=gpu, model_type=model_type, channels=[1,2], diameter=bf_diameter, flow_threshold=flow_threshold, mask_threshold=mask_threshold, pretrained_model=pretrained_model, check_preprocessing=False)
+        segmenter = Segmentation(gpu=gpu, pretrained_model=pretrained_model, model_type=model_type, diameter=diameter, flow_threshold=flow_threshold, mask_threshold=mask_threshold)
 
+        print('Running segmentation with cellpose...')
+        for frame in tqdm(range(self.n_images)):
+            
+            image = self.read_image(self.bf_channel, frame)
+            mask = segmenter.segment_image(image, diameter=diameter, flow_threshold=flow_threshold, mask_threshold=mask_threshold)
             writer.write_frame(mask)
         
         writer.close()
 
         return
     
-def track(self, track_memory=15, max_travel=5, min_frames=10, pixel_to_um=1, verbose=False):
+    def track(self, track_memory=15, max_travel=30, min_frames=10, pixel_to_um=1, verbose=False):
 
-    ##Calculate centroids of each mask, then save dataframe with particle_id, positions with trackpy. Then link and obtain tracks. Then calculate fluorescence
-    
-    file=os.path.join(self.path_out, 'cyto_masks.mp4')
-    
-    masks = skvideo.io.vread(file, as_grey=False)[:,:,:,0].copy()
+        ##Calculate centroids of each mask, then save dataframe with particle_id, positions with trackpy. Then link and obtain tracks. Then calculate fluorescence
+        
+        file=os.path.join(self.path_out, 'cyto_masks.mp4')
+        
+        masks = skvideo.io.vread(file, as_grey=False)[:,:,:,0].copy()
 
-    df = tracking.track(masks, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
+        merge_channels=False
+        for fl_channel in self.fl_channels:
+            label= self.channel_labels[fl_channel]
+            print(f'Tracking channel {label}..')
+            f_image = self.read_image(c=fl_channel, frames=np.arange(self.n_images))
+            df_channel = tracking.track(masks, f_image, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
 
-    df.to_csv(self.df_path)
+            df_channel.to_csv(self.df_path)
+            df_channel['fl_channel']=[label]*len(df_channel)
+            df_channel.to_csv(self.df_path)
+            if merge_channels:
+                df = pd.concat([df, df_channel], ignore_index=True)
+            else:
+                df = df_channel.copy()
+                del df_channel
+            merge_channels=True
 
-    return
+        df.to_csv(self.df_path)
+
+        return
