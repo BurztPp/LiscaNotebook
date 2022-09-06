@@ -44,7 +44,7 @@ class Segmentation:
         flow_threshold=self.flow_threshold if flow_threshold is None else flow_threshold
         mask_threshold=self.mask_threshold if mask_threshold is None else mask_threshold
 
-        mask = self.model.eval(image, diameter=diameter, channels=None, flow_threshold=flow_threshold, mask_threshold=mask_threshold, normalize=True, verbose=self.verbose)[0].astype('uint8')
+        mask = self.model.eval(image, diameter=diameter, channels=None, flow_threshold=flow_threshold, cellprob_threshold=mask_threshold, normalize=True)[0].astype('uint8')
 
 
         return mask

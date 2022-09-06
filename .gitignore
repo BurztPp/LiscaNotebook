@@ -12,6 +12,8 @@ pip-selfcheck.json
 
 # Temporary files
 __pycache__/
+/.ipynb/
+*/.ipynb_checkpoints/
 *~
 *.swp
 *.pyc
