@@ -132,7 +132,7 @@ ssh {user}@lsr-ws-imaging1.roentgen.physik.uni-muenchen.de
 Activate the enviroment
 
 ```
-source /scratch-local/miguel/miniconda/bin activate
+source /scratch-local/miguel/miniconda/bin/activate
 conda activate pyama
 ```
 Run a jupyter notebook from the base directory
