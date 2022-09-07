@@ -138,6 +138,7 @@ conda activate pyama
 Run a jupyter notebook from the base directory
 ```
 cd /
+ipython kernel install --user --name=pyama
 jupyter notebook --no-browser
 ```
 Check what port number the server is running on.
