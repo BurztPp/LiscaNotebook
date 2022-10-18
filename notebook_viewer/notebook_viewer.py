@@ -626,12 +626,12 @@ class ResultsViewer:
         
         box = widgets.VBox([self.t, self.c, self.v, self.clip, self.min_mass, self.diameter, self.min_frames, self.max_travel, self.view_nuclei, self.view_cellpose]) #, layout=widgets.Layout(width='400px'))
         box1 = widgets.VBox([out, box])
-        grid = widgets.widgets.GridspecLayout(6, 6)
-        
-        grid[:3, :3] = self.fig.canvas
-        grid[1:3,4:] = box
-        grid[0, 5] = out
-        grid[3:, :3]= self.fig2.canvas
+        grid = widgets.widgets.GridspecLayout(10, 12)
+        print('hiiiii')
+        grid[:, :5] = self.fig.canvas
+        grid[:,10:] = box
+        #grid[0, 5] = out
+        grid[:, 5:]= self.fig2.canvas
         #display(self.fig.canvas)
         display(grid)
         plt.ion()

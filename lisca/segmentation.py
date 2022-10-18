@@ -6,6 +6,7 @@ from urllib import request
 from cellpose import models
 from cellpose.io import logger_setup 
 from tqdm import tqdm
+from src.img_op import background_correction, coarse_binarize_phc
 
 
 class Segmentation:

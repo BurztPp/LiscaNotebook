@@ -45,7 +45,6 @@ class Track:
         None.
 
         """
-        
         self.data_path = data_path
         self.path_out = path_out
         self.metadata = {}
@@ -160,12 +159,16 @@ class Track:
             if channel==1 or channel=='nucleus':
                     return imread(os.path.join(self.data_path, self.nucleus_file), key=frames)
 
-    def segment(self, pretrained_model=None, flow_threshold=0.8, mask_threshold=-2, gpu=True, model_type='bf', diameter=29, verbose=False):
+    def segment(self, pretrained_model=None, flow_threshold=0.8, mask_threshold=-2, gpu=True, model_type='bf', diameter=29, verbose=False, method='th'):
 
+        
         self.metadata.update(locals())
         self.metadata.pop('self')
         with open(self.meta_path, "w") as outfile:
             json.dump(dict(self.metadata), outfile)
+        
+        if method=='th':
+            return self.th_segment()
 
         writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks.mp4'))
         
@@ -182,30 +185,55 @@ class Track:
 
         return
     
-    def track(self, track_memory=15, max_travel=30, min_frames=10, pixel_to_um=1, verbose=False):
+    def th_segment(self):
+
+        from src.img_op import background_correction, coarse_binarize_phc
+        from skimage.measure import label
+
+        writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks_th.mp4'))
+        
+        print('Running segmentation with thresholding...')
+        for frame in tqdm(range(self.n_images)):
+            
+            image = self.read_image(self.bf_channel, frame)
+            mask = coarse_binarize_phc.binarize_frame(image)
+            if mask.max()>255:
+                print('overflooow')
+            mask = np.clip(label(mask, connectivity=1), a_max=255, a_min=0).astype('uint8')
+            #print(np.unique(mask))
+            #import matplotlib.pyplot as plt
+            #plt.imshow(mask)
+            #plt.show()
+            #sys.exit()
+            writer.write_frame(mask)
+        
+        writer.close()
+
+        return
+
+
+    def track(self, track_memory=15, max_travel=30, min_frames=10, pixel_to_um=1, verbose=False, method='th'):
 
         ##Calculate centroids of each mask, then save dataframe with particle_id, positions with trackpy. Then link and obtain tracks. Then calculate fluorescence
         
-        file=os.path.join(self.path_out, 'cyto_masks.mp4')
-        
+        if method=='th':
+            file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
+        else:
+            file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
+    
         masks = skvideo.io.vread(file, as_grey=False)[:,:,:,0].copy()
 
-        merge_channels=False
+        #df = tracking.track(masks, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
+        #df.to_csv(self.df_path)
+        df = pd.read_csv(self.df_path)
+    
         for fl_channel in self.fl_channels:
             label= self.channel_labels[fl_channel]
-            print(f'Tracking channel {label}..')
-            f_image = self.read_image(c=fl_channel, frames=np.arange(self.n_images))
-            df_channel = tracking.track(masks, f_image, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
-
-            df_channel.to_csv(self.df_path)
-            df_channel['fl_channel']=[label]*len(df_channel)
-            df_channel.to_csv(self.df_path)
-            if merge_channels:
-                df = pd.concat([df, df_channel], ignore_index=True)
-            else:
-                df = df_channel.copy()
-                del df_channel
-            merge_channels=True
+            fl_image = self.read_image(c=fl_channel, frames=np.arange(self.n_images))
+            print(f'Reading channel {label}..')
+            df = tracking.read_fluorescence(df, fl_image, masks, label)
+            
+            del fl_image
 
         df.to_csv(self.df_path)
 

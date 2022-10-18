@@ -207,12 +207,17 @@ class CellposeViewer:
 
 class ResultsViewer:
     
-    def __init__(self, nd2file, outpath, db_path = '/project/ag-moonraedler/MAtienza/database/onedcellmigration.db', manual=False):
+    def __init__(self, nd2file, outpath, db_path = '/project/ag-moonraedler/MAtienza/database/onedcellmigration.db', manual=False, method='th'):
         
         self.link_dfs = {}
         self.cyto_locator=None
         self.nd2file=nd2file
         self.f = ND2Reader(nd2file)
+        self.method='th'
+        if method=='th':
+            self.masks_file = 'cyto_masks_th.mp4'
+        else:
+            self.masks_file = 'cyto_masks.mp4'
 
         if not manual:
             self.nfov, self.nframes = self.f.sizes['v'], self.f.sizes['t']
@@ -287,6 +292,7 @@ class ResultsViewer:
         self.fig2.tight_layout()
         self.fig2.canvas.header_visible = False
         self.fig2.canvas.footer_visible = True
+        self.ax2.set_xlabel('Frame')
         
         self.cid2 = self.fig2.canvas.mpl_connect('button_press_event', self.onclick_plot)
         
@@ -296,14 +302,14 @@ class ResultsViewer:
         #Organize layout and display
         out = widgets.interactive_output(self.update, {'t': self.t, 'c': self.c, 'v': self.v, 'clip': self.clip})
         
-        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose]) #, layout=widgets.Layout(width='400px'))
+        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose], layout=widgets.Layout(width='400px'))
         box1 = widgets.VBox([out, box])
-        grid = widgets.widgets.GridspecLayout(6, 6)
+        grid = widgets.widgets.GridspecLayout(16, 12)
         
-        grid[:3, :3] = self.fig.canvas
-        grid[1:3,4:] = box
-        grid[0, 5] = out
-        grid[3:, :3]= self.fig2.canvas
+        grid[:, :5] = self.fig.canvas
+        grid[:,10:] = box
+        #grid[0, 5] = out
+        grid[:, 5:10]= self.fig2.canvas
         #display(self.fig.canvas)
         display(grid)
         plt.ion()
@@ -435,8 +441,7 @@ class ResultsViewer:
 
             self.lane_ids = np.unique(self.df.Lane_id.values)
             self.lane_ids.sort()
-
-            self.df['particle']=self.df.particle_id  
+  
             self.df = tracking.get_single_cells(self.df)
             self.df = tracking.remove_close_cells(self.df)
             
@@ -444,14 +449,13 @@ class ResultsViewer:
 
             conn.close()
         
-        elif not os.path.isfile(os.path.join(self.outpath, f'XY{fov}/cyto_masks.mp4')):
+        elif not os.path.isfile(os.path.join(self.outpath, f'XY{fov}/{self.masks_file}')):
 
             print('No data available for this fov')
         
         else:
 
             self.df = pd.read_csv(f'{self.outpath}/XY{fov}/tracking_data.csv')
-            self.df['particle_id']=self.df.particle
 
             if self.masks_available:
                 
@@ -462,8 +466,8 @@ class ResultsViewer:
 
     def load_masks(self, outpath, fov):
         
-        path_to_mask = os.path.join(outpath, f'XY{fov}/cyto_masks.mp4')
-        
+        path_to_mask = os.path.join(outpath, f'XY{fov}/{self.masks_file}')
+        print(path_to_mask)
         if os.path.isfile(path_to_mask):
             self.masks = functions.mp4_to_np(path_to_mask)
             self.masks_available=True
@@ -483,18 +487,24 @@ class ResultsViewer:
         if mask_id==0:
             #No mask was clicked on
             return
+        particle_id = self.df.loc[(self.df.frame==self.t.value) & (self.df.cyto_locator==mask_id)].particle.values
         
-        self.particle_id = self.df.loc[(self.df.frame==self.t.value) & (self.df.cyto_locator==mask_id)].particle_id.values[0]
+        if len(particle_id)>0:
+            self.particle_id = particle_id[0]
+        else:
+            print('No mask here')
+            return
         
-        self.dfp=self.df[self.df.particle_id==self.particle_id]
-        fl_channels=self.dfp.fl_channel.unique()
+        self.dfp=self.df[self.df.particle==self.particle_id]
+        fl_channels = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1:]
 
         self.ax2.clear()
         for fl_channel in fl_channels:
-            dfpc = self.dfp[self.dfp.fl_channel==fl_channel]
-            self.ax2.plot(dfpc.frame, dfpc.fluorescence, label=fl_channel)
+            fluorescence = self.dfp[fl_channel]
+            self.ax2.plot(self.dfp.frame, fluorescence, label=fl_channel)
         self.ax2.legend()
         self.ax2.set_title(self.f.metadata['channels'][self.c.value])
+        self.ax2.set_xlabel('Frame')
         #self.ax2.plot(self.dfp.frame, self.dfp.front, color='red')
         #self.ax2.plot(self.dfp.frame, self.dfp.rear, color='red')
         

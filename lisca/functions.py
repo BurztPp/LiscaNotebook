@@ -6,13 +6,18 @@ General functions used for all parts of the code.
 """
 import os
 from tkinter import Y
-from typing import Iterable
 import numpy as np
 import sys
-from numba import njit, prange
+try:
+    from numba import njit, prange
+except:
+    pass
 from tqdm import tqdm
 from skimage.feature import peak_local_max
-import cv2
+try:
+    import cv2
+except:
+    pass
 import datetime
 import multiprocessing as mp
 try:
@@ -1062,7 +1067,17 @@ def get_foot_print(masks, out=None, crf=0, rate=10, write=False):
 def read_nd2(file, v, frames=None, c=None, manual=False):
 
     from nd2reader import ND2Reader
+    #print('Reading nd2...')
     f = ND2Reader(file)
+    if manual:
+            nfov, nframes = 288, 179
+            f.sizes['v']= nfov
+            f.sizes['t']=nframes
+            f.metadata['fields_of_view']=list(range(nfov))
+    
+    if isinstance(frames,int):
+        x = f.get_frame_2D(v=v, c=c, t=frames)
+        return x
     
     if frames is None:
         if c is None:
@@ -1071,10 +1086,6 @@ def read_nd2(file, v, frames=None, c=None, manual=False):
         else:
             x = f.get_frame_2D(v=v, c=c)
             return x
-
-    if not isinstance(frames, Iterable):
-        
-        return f.get_frame_2D(v=v, t=frames, c=c)
 
     x = np.zeros((
         frames.size, f.sizes['y'], f.sizes['x']), dtype='uint16')

@@ -8,13 +8,13 @@ from tqdm import tqdm
 import pandas as pd
 
 
-def get_centroids(masks, f_image):
+def get_centroids(masks):
 
     nframes = masks.shape[0]
     ids=np.unique(masks)
     ids = ids[ids!=0]
     
-    df = pd.DataFrame(columns=['id', 'frame', 'x', 'y', 'fluorescence', 'cyto_locator', 'area'])
+    df = pd.DataFrame(columns=['frame', 'x', 'y', 'cyto_locator', 'area'])
     print('Computing centroids')
     for frame in tqdm(range(nframes)):
         for identifier in ids:
@@ -23,13 +23,12 @@ def get_centroids(masks, f_image):
             if count==0:
                 continue
             points =  np.argwhere(mask==identifier)
-            fluorescence = (f_image[frame][points]).sum()
             y = points[:,0].sum()/count
             x = points[:, 1].sum()/count
             
-            data = {'id': [identifier],
+            data = {
             'frame':[frame],
-            'x':[x], 'y':[y], 'fluorescence': [fluorescence], 'cyto_locator': identifier,
+            'x':[x], 'y':[y], 'cyto_locator': identifier,
             'area': count}
 
             new_df = pd.DataFrame.from_dict(data)
@@ -38,7 +37,7 @@ def get_centroids(masks, f_image):
 
     return df
 
-def track(masks, f_image, track_memory=15, max_travel=5, min_frames=10, pixel_to_um=1, verbose=False):
+def track(masks, track_memory=15, max_travel=5, min_frames=10, pixel_to_um=1, verbose=False):
 
     """
     Parameters
@@ -75,7 +74,7 @@ def track(masks, f_image, track_memory=15, max_travel=5, min_frames=10, pixel_to
     if verbose:
         print('Getting centroids...')
 
-    f = get_centroids(masks, f_image)
+    f = get_centroids(masks)
     print('Tracking')
     if verbose:
         print('Tracking')
@@ -87,4 +86,22 @@ def track(masks, f_image, track_memory=15, max_travel=5, min_frames=10, pixel_to
         print('Tracking of nuclei completed.')
 
     return t
+
+def read_fluorescence(df, fl_image, masks, label):
+
+    ids=np.unique(df.particle)
+    df[label]=np.zeros(len(df))
+    
+    for identifier in tqdm(ids):
+        dfp = df[df.particle==identifier]
+        frames = dfp.frame.values
+        cyto_locator = dfp.cyto_locator.values
+        bin_masks=masks[frames]==cyto_locator[:,np.newaxis, np.newaxis]
+        fluorescence = (fl_image[frames]*bin_masks).sum(axis=(1,2))
+        #print(fluorescence.shape, len(df.loc[(df.particle==identifier), label]))
+        df.loc[(df.particle==identifier), label]=fluorescence
+        
+    return df
+
+    
 
