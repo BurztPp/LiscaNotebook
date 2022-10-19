@@ -11,6 +11,7 @@ import numpy as np
 import numpy.ma as ma
 import scipy.interpolate as scint
 import scipy.stats as scst
+from tqdm import tqdm
 
 from .. import util
 
@@ -118,6 +119,8 @@ def background_schwarzfischer(fluor_chan, bin_chan, div_horiz=7, div_vert=5, mem
     else:
         bg_interp, arr_temp, iter_temp = np.empty(shape=fluor_chan.shape, dtype=dtype_interp)
 
+    #print(fluor_chan.nbytes)
+    #sys.exit()
     # Construct tiles for background interpolation
     # Each pair of neighboring tiles is overlapped by a third tile, resulting in a total tile number
     # of `2 * div_i - 1` tiles for each direction `i` in {`horiz`, `vert`}.
@@ -127,8 +130,9 @@ def background_schwarzfischer(fluor_chan, bin_chan, div_horiz=7, div_vert=5, mem
     supp = np.empty((tiles_horiz.size, tiles_vert.size))
 
     # Interpolate background as cubic spline with each tile’s median as support point at the tile center
-    for t in range(n_frames):
-        print(f"Interpolating background in frame {t:3d} …")
+    print(f"Interpolating background")
+    for t in tqdm(range(n_frames)):
+        #print(f"Interpolating background in frame {t:3d} …")
         masked_frame = ma.masked_array(fluor_chan[t, ...], mask=bin_chan[t, ...])
         for iy, (y, sy) in enumerate(tiles_vert):
             for ix, (x, sx) in enumerate(tiles_horiz):

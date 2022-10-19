@@ -1,3 +1,5 @@
+from genericpath import isfile
+from skimage import io
 import sys
 from tqdm import tqdm
 sys.path.append('..')
@@ -13,6 +15,7 @@ from nd2reader import ND2Reader
 from .segmentation import Segmentation
 from .video_writer import Mp4writer
 from lisca import tracking
+from src.img_op.background_correction import background_schwarzfischer
 
 
 class Track:
@@ -167,10 +170,16 @@ class Track:
         with open(self.meta_path, "w") as outfile:
             json.dump(dict(self.metadata), outfile)
         
+        
+        
         if method=='th':
             return self.th_segment()
 
-        writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks.mp4'))
+        file=os.path.join(self.path_out, 'cyto_masks.mp4')
+        if os.path.isfile(file):
+            os.remove(file)
+
+        writer = Mp4writer(file)
         
         segmenter = Segmentation(gpu=gpu, pretrained_model=pretrained_model, model_type=model_type, diameter=diameter, flow_threshold=flow_threshold, mask_threshold=mask_threshold)
 
@@ -190,6 +199,11 @@ class Track:
         from src.img_op import background_correction, coarse_binarize_phc
         from skimage.measure import label
 
+        file = os.path.join(self.path_out, 'cyto_masks_th.mp4')
+        
+        if os.path.isfile(file):
+            os.remove(file)
+
         writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks_th.mp4'))
         
         print('Running segmentation with thresholding...')
@@ -198,7 +212,7 @@ class Track:
             image = self.read_image(self.bf_channel, frame)
             mask = coarse_binarize_phc.binarize_frame(image)
             if mask.max()>255:
-                print('overflooow')
+                print('overflow in threshold segmentation')
             mask = np.clip(label(mask, connectivity=1), a_max=255, a_min=0).astype('uint8')
             #print(np.unique(mask))
             #import matplotlib.pyplot as plt
@@ -211,7 +225,6 @@ class Track:
 
         return
 
-
     def track(self, track_memory=15, max_travel=30, min_frames=10, pixel_to_um=1, verbose=False, method='th'):
 
         ##Calculate centroids of each mask, then save dataframe with particle_id, positions with trackpy. Then link and obtain tracks. Then calculate fluorescence
@@ -219,13 +232,13 @@ class Track:
         if method=='th':
             file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
         else:
-            file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
+            file=os.path.join(self.path_out, 'cyto_masks.mp4')
     
         masks = skvideo.io.vread(file, as_grey=False)[:,:,:,0].copy()
 
-        #df = tracking.track(masks, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
-        #df.to_csv(self.df_path)
-        df = pd.read_csv(self.df_path)
+        df = tracking.track(masks, track_memory=track_memory, max_travel=max_travel, min_frames=min_frames, pixel_to_um=1, verbose=False)
+        df.to_csv(self.df_path)
+        #df = pd.read_csv(self.df_path)
     
         for fl_channel in self.fl_channels:
             label= self.channel_labels[fl_channel]
@@ -238,3 +251,41 @@ class Track:
         df.to_csv(self.df_path)
 
         return
+    
+    
+    def save_to_pyama(self, fl_channel, method='th'):
+
+        from tifffile import imwrite
+        
+        if method=='th':
+            file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
+        else:
+            file=os.path.join(self.path_out, 'cyto_masks_th.mp4')
+
+        segmentation = (functions.mp4_to_np(file)>0).astype('uint8')
+        fl_image = self.read_image(c=fl_channel, frames=self.frame_indices)
+        bf = self.read_image(c=self.bf_channel, frames=self.frame_indices)
+
+        bg = background_schwarzfischer(fl_image, segmentation>0, mem_lim=1e9, memmap_dir=os.path.join(self.path_out, 'tmp'))
+        del fl_image
+        
+        ##Save background corrected image
+        n_frames, height, width = bg.shape
+        tiff_shape = (n_frames, 1, 1, height, width, 1)
+        outfile = os.path.join(self.path_out, 'bg_corr.tif')
+        imwrite(outfile, bg.reshape(tiff_shape), shape=tiff_shape, imagej=True)
+        
+        ##Save bright field channel tif
+        n_frames, height, width = bf.shape
+        tiff_shape = (n_frames, 1, 1, height, width, 1)
+        outfile = os.path.join(self.path_out, 'bf.tif')
+        imwrite(outfile, bf.reshape(tiff_shape), shape=tiff_shape, imagej=True)
+        
+        ##Save segmentation
+        np.savez_compressed(os.path.join(self.path_out, f'XY{self.fov}-bgcorr_segmented.npz'), segmentation)
+
+        if os.path.isdir(os.path.join(self.path_out, 'tmp')):
+            os.rmdir(os.path.join(self.path_out, 'tmp'))
+        
+        return
+
