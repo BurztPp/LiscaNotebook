@@ -268,17 +268,17 @@ class Track:
 
         bg = background_schwarzfischer(fl_image, segmentation>0, mem_lim=1e9, memmap_dir=os.path.join(self.path_out, 'tmp'))
         del fl_image
-        
+
         ##Save background corrected image
         n_frames, height, width = bg.shape
         tiff_shape = (n_frames, 1, 1, height, width, 1)
-        outfile = os.path.join(self.path_out, 'bg_corr.tif')
+        outfile = os.path.join(self.path_out, f'XY{self.fov}-bg_corr.tif')
         imwrite(outfile, bg.reshape(tiff_shape), shape=tiff_shape, imagej=True)
         
         ##Save bright field channel tif
         n_frames, height, width = bf.shape
         tiff_shape = (n_frames, 1, 1, height, width, 1)
-        outfile = os.path.join(self.path_out, 'bf.tif')
+        outfile = os.path.join(self.path_out, f'XY{self.fov}-bf.tif')
         imwrite(outfile, bf.reshape(tiff_shape), shape=tiff_shape, imagej=True)
         
         ##Save segmentation
