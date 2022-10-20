@@ -117,3 +117,45 @@ When saving the measurements, a file `session.zip` is generated.
 You can reload the measurement by clicking on “File/Load session” and selecting this file.
 Currently, this requires that the stack files are all located in the same directories
 as during the session that created the file.
+
+### Pyama on a jupyter notebook
+
+#### From Windows
+
+Open a Powershell prompt.
+
+Log into the imaging server:
+
+```
+ssh {user}@lsr-ws-imaging1.roentgen.physik.uni-muenchen.de
+```
+Activate the enviroment
+
+```
+source /scratch-local/miguel/miniconda/bin/activate
+conda activate pyama
+```
+Run a jupyter notebook from the base directory
+```
+cd /
+ipython kernel install --user --name=pyama
+jupyter notebook --no-browser
+```
+Check what port number the server is running on.
+Forward the port to your own computer:
+Open a new Powershell prompt.
+```
+ssh -L {port}:localhost:{port} {user}@lsr-ws-imaging1.roentgen.physik.uni-muenchen.de
+```
+On any web browser open:
+```
+localhost:{port}
+```
+Enter the standard LS password.
+You should see a jupyter notebook.
+
+Copy the following notebook to whereever you preferr and run it:
+```
+/project/ag-moonraedler/MAtienza/pyama/notebooks_tests/lisca.ipynb
+```
+
