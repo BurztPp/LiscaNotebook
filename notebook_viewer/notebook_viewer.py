@@ -431,7 +431,8 @@ class CellposeViewer:
             self.model = models.Cellpose(gpu=gpu, model_type='cyto')
 
         else:
-            path_to_models = os.path.join('/home/m/Miguel.Atienza/celltracker/celltracker/', 'models')
+            
+            path_to_models = os.path.join(os.path.dirname(__file__), '../models')
             with open(os.path.join(path_to_models, 'models.json'), 'r') as f:
                 dic = json.load(f)
 

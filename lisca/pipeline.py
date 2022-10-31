@@ -20,7 +20,7 @@ from src.img_op.background_correction import background_schwarzfischer
 
 class Track:
     
-    def __init__(self, path_out, data_path, bf_channel, fl_channels, fov, bf_file=None, nucleus_file=None, nd2_file=None, lanes_file=None, frame_indices=None, max_memory=None, dataset_id=None, image_id=None, ome_host='omero.physik.uni-muenchen.de', ome_user_name=None, ome_password=None, manual=False):
+    def __init__(self, path_out, data_path, bf_channel, fov, fl_channels=None, bf_file=None, nucleus_file=None, nd2_file=None, lanes_file=None, frame_indices=None, max_memory=None, dataset_id=None, image_id=None, ome_host='omero.physik.uni-muenchen.de', ome_user_name=None, ome_password=None, manual=False):
         """
         A class to run full tracking part of the pipeline on one field of view. The class should contain the methods for the bf segmentation, nucleus tracking, and the rearranging of the nuclei with the bf contours. The final output should be a set of 3darrays (frame_number, nuclear_position, front, rear) each for one particle.
 
@@ -56,13 +56,16 @@ class Track:
         self.meta_path = os.path.join(self.path_out, 'metadata.json')
         self.max_memory=max_memory
         self.frame_indices = frame_indices
+        if self.frame_indices is not None:
+            self.frame_indices = np.array(self.frame_indices)
         self.dataset_id = dataset_id
         self.image_id = image_id
         self.nd2_file = nd2_file
         self.fov = fov
         self.manual=manual
         self.bf_channel=bf_channel
-        self.fl_channels=[*fl_channels]
+        
+        self.fl_channels=fl_channels
 
         if dataset_id is not None:
 
@@ -92,12 +95,14 @@ class Track:
                 f.sizes['t']=self.nframes
                 self.n_images=self.nframes
                 f.metadata['fields_of_view']=list(range(self.nfov))
-            else:
+            elif self.frame_indices is None:
                 self.nfov = f.sizes['v']
                 self.n_images = f.sizes['t']
+                self.frame_indices = np.arange(0, self.n_images)
+            else:
+                self.n_images = len(self.frame_indices)
             
             self.height, self.width = f.sizes['y'], f.sizes['x']
-            self.frame_indices = np.arange(0, self.n_images)
             self.channel_labels = f.metadata['channels']
             
 
@@ -207,7 +212,7 @@ class Track:
         writer = Mp4writer(os.path.join(self.path_out, 'cyto_masks_th.mp4'))
         
         print('Running segmentation with thresholding...')
-        for frame in tqdm(range(self.n_images)):
+        for frame in tqdm(self.frame_indices):
             
             image = self.read_image(self.bf_channel, frame)
             mask = coarse_binarize_phc.binarize_frame(image)

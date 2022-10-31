@@ -17,6 +17,9 @@ __pycache__/
 *~
 *.swp
 *.pyc
+forNathalie/*
+notebooks_tests/
+/data/
 
 # Data relating to development/deployment
 out/
