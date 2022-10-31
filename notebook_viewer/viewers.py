@@ -321,9 +321,9 @@ class ResultsViewer:
         grid = widgets.widgets.GridspecLayout(12, 12)
         
         grid[:4, :] = self.fig.canvas
-        grid[10:,:] = box
+        grid[4:10,8:] = box
         #grid[0, 5] = out
-        grid[5:10, :]= self.fig2.canvas
+        grid[4:10, :8]= self.fig2.canvas
         #display(self.fig.canvas)
         display(grid)
         plt.ion()
