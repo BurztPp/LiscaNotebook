@@ -34,6 +34,7 @@ def get_centroids(masks):
             new_df = pd.DataFrame.from_dict(data)
 
             df = pd.concat([df, new_df])
+            df["Selected"] = 1
 
     return df
 
@@ -84,6 +85,8 @@ def track(masks, track_memory=15, max_travel=5, min_frames=10, pixel_to_um=1, ve
 
     if verbose:
         print('Tracking of nuclei completed.')
+        
+    
 
     return t
 
@@ -100,6 +103,8 @@ def read_fluorescence(df, fl_image, masks, label):
         fluorescence = (fl_image[frames]*bin_masks).sum(axis=(1,2))
         #print(fluorescence.shape, len(df.loc[(df.particle==identifier), label]))
         df.loc[(df.particle==identifier), label]=fluorescence
+    
+    
         
     return df
 
