@@ -263,6 +263,17 @@ class ResultsViewer:
         tooltip='Click me',
         icon='')
         
+        self.view_select = widgets.Button(
+        value=True,
+        description='Include/Exclude',
+        disabled=False,
+        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        tooltip='Click me',
+        icon='')
+        self.particle_idex = False
+
+        self.view_select.on_click(self.selection)
+        
         vmin, vmax = self.clip.value
         cyto = self.f.get_frame_2D(v=self.v.value,c=self.c.value,t=self.t.value)
         cyto = np.clip(cyto, vmin, vmax).astype('float32')
@@ -273,6 +284,7 @@ class ResultsViewer:
         self.load_masks(outpath, self.v.value)
         self.load_df(self.db_path, self.v.value)
         self.oldv=0
+        self.num_particles = np.unique(self.df.particle.values)
         
         
         ##Initialize the figure
@@ -296,24 +308,60 @@ class ResultsViewer:
         
         self.cid2 = self.fig2.canvas.mpl_connect('button_press_event', self.onclick_plot)
         
-        self.ax2.plot(np.arange(100), np.ones(100), color='blue')
-        self.tmarker=self.ax2.axvline(self.t.value, color='black', lw=1)
+        #self.ax2.plot(np.arange(100), np.ones(100), color='blue')
+        #self.tmarker=self.ax2.axvline(self.t.value, color='black', lw=1)
+        
+        self.plot_all()
         
         #Organize layout and display
         out = widgets.interactive_output(self.update, {'t': self.t, 'c': self.c, 'v': self.v, 'clip': self.clip})
         
-        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose], layout=widgets.Layout(width='400px'))
+        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose, self.view_select], layout=widgets.Layout(width='200px'))
         box1 = widgets.VBox([out, box])
-        grid = widgets.widgets.GridspecLayout(16, 12)
+        grid = widgets.widgets.GridspecLayout(12, 12)
         
-        grid[:, :5] = self.fig.canvas
-        grid[:,10:] = box
+        grid[:4, :] = self.fig.canvas
+        grid[10:,:] = box
         #grid[0, 5] = out
-        grid[:, 5:10]= self.fig2.canvas
+        grid[5:10, :]= self.fig2.canvas
         #display(self.fig.canvas)
         display(grid)
         plt.ion()
         
+    def plot_all(self, highlight=False):
+        self.ax2.clear()
+        for i in self.num_particles:
+            self.dfp=self.df[self.df.particle==i]
+            selected = self.dfp.Selected.values[0]
+            if selected:  
+                fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+                fluorescence = self.dfp[fl_channel]
+                if highlight:
+                    self.ax2.plot(self.dfp.frame, fluorescence, color="gray")
+                else:
+                    self.ax2.plot(self.dfp.frame, fluorescence)
+    
+    def selection(self, b):
+        if self.particle_idex:
+            self.plot_all(True)
+            selected = self.df.loc[self.df.particle == self.particle_id].Selected.values[0]
+            self.dfp=self.df[self.df.particle==self.particle_id]
+            fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+            fluorescence = self.dfp[fl_channel]
+            if selected:
+                self.df.loc[self.df.particle == self.particle_id, "Selected"] = 0
+                self.df.to_csv(f'{self.outpath}/XY{self.v.value}/tracking_data.csv', index=False)
+                
+                self.ax2.plot(self.dfp.frame, fluorescence, color="red", label="Excluded")
+            else:
+                self.df.loc[self.df.particle == self.particle_id, "Selected"] = 1
+                self.df.to_csv(f'{self.outpath}/XY{self.v.value}/tracking_data.csv', index=False)
+                self.ax2.plot(self.dfp.frame, fluorescence, color="blue", label="Included")
+            
+            
+            self.ax2.legend()
+            self.ax2.set_title("Cell " + str(self.particle_id))
+            self.ax2.set_xlabel("Frame")
 
     def update(self, t, c, v, clip):
 
@@ -337,6 +385,9 @@ class ResultsViewer:
         if self.view_cellpose.value:
             if v!=self.oldv:
                 self.load_masks(self.outpath, v)
+                
+        
+                
     
         self.update_image(t, v, clip)
         
@@ -401,6 +452,8 @@ class ResultsViewer:
                     image[g_outline]=[0,255,0]
 
         self.image=image
+        
+        
 
     def load_df(self, db_path, fov, from_db=False):
         
@@ -486,25 +539,30 @@ class ResultsViewer:
         
         if mask_id==0:
             #No mask was clicked on
+            self.plot_all()
             return
         particle_id = self.df.loc[(self.df.frame==self.t.value) & (self.df.cyto_locator==mask_id)].particle.values
         
         if len(particle_id)>0:
             self.particle_id = particle_id[0]
+            self.particle_idex = True
         else:
             print('No mask here')
             return
-        
+        self.plot_all(True)
         self.dfp=self.df[self.df.particle==self.particle_id]
-        fl_channels = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1:]
-
-        self.ax2.clear()
-        for fl_channel in fl_channels:
+        fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+        included = self.dfp.Selected.values[0]
+        
+        if included:
             fluorescence = self.dfp[fl_channel]
-            self.ax2.plot(self.dfp.frame, fluorescence, label=fl_channel)
+            self.ax2.plot(self.dfp.frame, fluorescence, color="blue",label="Included")
+        else:
+            fluorescence = self.dfp[fl_channel]
+            self.ax2.plot(self.dfp.frame, fluorescence, color="red",label="Excluded")
         self.ax2.legend()
-        self.ax2.set_title(self.f.metadata['channels'][self.c.value])
-        self.ax2.set_xlabel('Frame')
+        self.ax2.set_title("Cell " + str(self.particle_id))
+        self.ax2.set_xlabel("Frame")
         #self.ax2.plot(self.dfp.frame, self.dfp.front, color='red')
         #self.ax2.plot(self.dfp.frame, self.dfp.rear, color='red')
         
@@ -514,16 +572,16 @@ class ResultsViewer:
         def frame_to_t(frame):
             return frame*tres/60
 
-        tax = self.ax2.secondary_xaxis('top', functions=(frame_to_t, t_to_frame))
-        tax.set_xlabel('Time in minutes')
-        self.tmarker=self.ax2.axvline(self.t.value, color='black', lw=1)
+        #tax = self.ax2.secondary_xaxis('top', functions=(frame_to_t, t_to_frame))
+        #tax.set_xlabel('Time in minutes')
+        #self.tmarker=self.ax2.axvline(self.t.value, color='black', lw=1)
 
         self.cyto_locator = np.zeros(self.masks.shape[0], dtype='uint8')
         
         self.cyto_locator[self.dfp.frame]=self.masks[self.dfp.frame, np.round(self.dfp.y).astype(int), np.round(self.dfp.x).astype(int)]
         
         self.update_image(self.t.value, self.v.value, self.clip.value)
-        
+        self.update(self.t.value, self.c.value, self.v.value, self.clip.value)
         self.im.set_data(self.image)
         return
     
