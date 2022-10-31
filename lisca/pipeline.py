@@ -284,8 +284,7 @@ class Track:
         ##Save segmentation
         np.savez_compressed(os.path.join(self.path_out, f'XY{self.fov}-bgcorr_segmented.npz'), segmentation)
 
-        if os.path.isdir(os.path.join(self.path_out, 'tmp')):
-            os.rmdir(os.path.join(self.path_out, 'tmp'))
+        
         
         return
 
