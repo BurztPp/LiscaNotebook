@@ -271,8 +271,36 @@ class ResultsViewer:
         tooltip='Click me',
         icon='')
         self.particle_idex = False
+        
+        self.view_all = widgets.Button(
+        value=True,
+        description='Show all plots',
+        disabled=False,
+        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        tooltip='Click me',
+        icon='')
+        self.particle_idex = False
+        
+        self.cell_prev = widgets.Button(
+        value=True,
+        description='Previous Cell',
+        disabled=False,
+        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        tooltip='Click me',
+        icon='')
+        self.particle_idex = False
+        
+        self.cell_next = widgets.Button(
+        value=True,
+        description='Next Cell',
+        disabled=False,
+        button_style='', # 'success', 'info', 'warning', 'danger' or ''
+        tooltip='Click me',
+        icon='')
+        self.particle_idex = False
 
         self.view_select.on_click(self.selection)
+        self.view_all.on_click(self.plot_total)
         
         vmin, vmax = self.clip.value
         cyto = self.f.get_frame_2D(v=self.v.value,c=self.c.value,t=self.t.value)
@@ -285,6 +313,8 @@ class ResultsViewer:
         self.load_df(self.db_path, self.v.value)
         self.oldv=0
         self.num_particles = np.unique(self.df.particle.values)
+        
+        
         
         
         ##Initialize the figure
@@ -316,7 +346,7 @@ class ResultsViewer:
         #Organize layout and display
         out = widgets.interactive_output(self.update, {'t': self.t, 'c': self.c, 'v': self.v, 'clip': self.clip})
         
-        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose, self.view_select], layout=widgets.Layout(width='200px'))
+        box = widgets.VBox([self.t, self.c, self.v, self.clip, self.view_nuclei, self.view_cellpose, self.view_select, self.view_all, self.cell_prev, self.cell_next], layout=widgets.Layout(width='200px'))
         box1 = widgets.VBox([out, box])
         grid = widgets.widgets.GridspecLayout(12, 12)
         
@@ -327,6 +357,11 @@ class ResultsViewer:
         #display(self.fig.canvas)
         display(grid)
         plt.ion()
+        
+        
+        self.cell_prev.on_click(self.previous_cell)
+        self.cell_next.on_click(self.next_cell)
+        self.plot_all()
         
     def plot_all(self, highlight=False):
         self.ax2.clear()
@@ -340,6 +375,67 @@ class ResultsViewer:
                     self.ax2.plot(self.dfp.frame, fluorescence, color="gray")
                 else:
                     self.ax2.plot(self.dfp.frame, fluorescence)
+                   
+    def plot_total(self, b):
+        self.ax2.clear()
+        for i in self.num_particles:
+            self.dfp=self.df[self.df.particle==i]
+            selected = self.dfp.Selected.values[0]
+            fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+            fluorescence = self.dfp[fl_channel]
+            if selected:
+                self.ax2.plot(self.dfp.frame, fluorescence, color="blue")
+            else:
+                self.ax2.plot(self.dfp.frame, fluorescence, color="gray")
+                
+    def previous_cell(self, b):
+        if self.particle_idex:
+            for i, uid in enumerate(self.num_particles):
+                if uid == self.particle_id:
+                    place = i
+            place -= 1
+        else:
+            self.particle_idex = True
+            place = 0
+        self.place = place      
+        self.particle_id = self.num_particles[place]
+        self.plot_all(True)
+        selected = self.df.loc[self.df.particle == self.particle_id].Selected.values[0]
+        self.dfp=self.df[self.df.particle==self.particle_id]
+        fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+        fluorescence = self.dfp[fl_channel]
+        if selected:
+            self.ax2.plot(self.dfp.frame, fluorescence, color="blue", label="Included")
+        else:
+            self.ax2.plot(self.dfp.frame, fluorescence, color="red", label="Excluded")
+        self.ax2.legend()
+        self.ax2.set_title("Cell " + str(self.particle_id))
+        self.ax2.set_xlabel("Frame")
+        
+    def next_cell(self, b):
+        if self.particle_idex:
+            for i, uid in enumerate(self.num_particles):
+                if uid == self.particle_id:
+                    place = i
+            place += 1
+        else:
+            self.particle_idex = True
+            place = 1
+        self.place = place      
+        self.particle_id = self.num_particles[place]
+        self.plot_all(True)
+        selected = self.df.loc[self.df.particle == self.particle_id].Selected.values[0]
+        self.dfp=self.df[self.df.particle==self.particle_id]
+        fl_channel = self.dfp.columns[np.argwhere(self.dfp.columns=='particle')[0,0]+1]
+        fluorescence = self.dfp[fl_channel]
+        if selected:
+            self.ax2.plot(self.dfp.frame, fluorescence, color="blue", label="Included")
+        else:
+            self.ax2.plot(self.dfp.frame, fluorescence, color="red", label="Excluded")
+        self.ax2.legend()
+        self.ax2.set_title("Cell " + str(self.particle_id))
+        self.ax2.set_xlabel("Frame")
+        
     
     def selection(self, b):
         if self.particle_idex:
@@ -351,7 +447,6 @@ class ResultsViewer:
             if selected:
                 self.df.loc[self.df.particle == self.particle_id, "Selected"] = 0
                 self.df.to_csv(f'{self.outpath}/XY{self.v.value}/tracking_data.csv', index=False)
-                
                 self.ax2.plot(self.dfp.frame, fluorescence, color="red", label="Excluded")
             else:
                 self.df.loc[self.df.particle == self.particle_id, "Selected"] = 1
