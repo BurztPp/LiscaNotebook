@@ -1065,7 +1065,7 @@ def get_foot_print(masks, out=None, crf=0, rate=10, write=False):
 
 
 def read_nd2(file, v, frames=None, c=None, manual=False):
-
+    
     from nd2reader import ND2Reader
     #print('Reading nd2...')
     f = ND2Reader(file)
@@ -1075,9 +1075,10 @@ def read_nd2(file, v, frames=None, c=None, manual=False):
             f.sizes['t']=nframes
             f.metadata['fields_of_view']=list(range(nfov))
     
-    if isinstance(frames,int):
+    if not hasattr(frames, '__iter__'):
         x = f.get_frame_2D(v=v, c=c, t=frames)
         return x
+
     
     if frames is None:
         if c is None:
