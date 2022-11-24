@@ -129,7 +129,10 @@ class Stack:
                 loader = 'npy'
             elif ext.casefold() in ('.h5', '.hdf5'):
                 loader = 'hdf5'
+            elif ext.casefold() in ('.nd2'):
+                loader = 'nd2'
             else:
+                print('hi')
                 loader = '' # to prevent error in string comparison
         if loader == 'tiff':
             self._load_tiff(status=status, channels=channels)
@@ -137,6 +140,8 @@ class Stack:
             self._load_npy(status=status, channels=channels)
         elif loader == 'hdf5':
             self._load_hdf5(status=status, channels=channels, h5_key=h5_key)
+        elif loader == 'nd2':
+            self._load_nd2(status=status, channels=channels)
         else:
             self._clear_state()
             raise TypeError("Unknown type: {}".format(loader))
@@ -256,7 +261,7 @@ class Stack:
         if status is None:
             status = DummyStatus()
         try:
-            with self.image_lock, h5py.File(self._path, 'r') as h5, status("Reading stack …") as current_status:
+            with h5py.File(self._path, 'r') as h5, status("Reading stack …") as current_status:
                 self._stacktype = 'hdf5'
                 if h5_key is not None:
                     key = h5_key
@@ -326,6 +331,36 @@ class Stack:
                                 current=1 + ch + fr * self._n_channels,
                                 total=self._n_images)
                         self.img[ch, fr, :, :] = data5[tuple(i)]
+
+        except Exception as e:
+            self._clear_state()
+            print(str(e))
+            raise
+
+        finally:
+            self._listeners.notify("image")
+    
+    def _load_nd2(self, status=None, channels=None):
+        from nd2reader import ND2Reader
+        if status is None:
+            status = DummyStatus()
+        
+        self.nd2 = nd2= ND2Reader(self._path)
+        try:
+        
+            self._stacktype = 'nd2'
+            
+            self._height = nd2.sizes['y']
+            self._width = nd2.sizes['x']
+            dtype = nd2.get_frame_2D().dtype
+            self._mode = self.dtype_str(dtype)
+            self._n_channels = nd2.sizes['c']
+            if not 't' in nd2.sizes:
+                self._n_frames = 1
+            else:
+                self._n_frames = nd2.sizes['t']
+            
+            self._n_images = self._n_frames * self._n_channels
 
         except Exception as e:
             self._clear_state()
@@ -480,12 +515,18 @@ class Stack:
     def get_image(self, channel, frame):
         """Get a numpy array of a stack position."""
         with self.image_lock:
-            return self.img[channel, frame, :, :]
+            if self._stacktype=='nd2':
+                return self.nd2.get_frame_2D(c=channel, v=0, t=frame)
+            else:
+                return self.img[channel, frame, :, :]
 
     def get_image_copy(self, channel, frame):
         """Get a copy of a numpy array of a stack position."""
         with self.image_lock:
-            return self.img[channel, frame, :, :].copy()
+            if self._stacktype=='nd2':
+                return self.nd2.get_frame_2D(c=channel, v=0, t=frame)
+            else:
+                return self.img[channel, frame, :, :].copy()
 
     def get_frame_tk(self, channel, frame, convert_fcn=None):
         """
@@ -509,6 +550,8 @@ class Stack:
         """
         with self.image_lock:
             a0 = self.get_image(channel=channel, frame=frame)
+            print('HEREE \n')
+            print(a0.shape, self._mode)
             if convert_fcn:
                 a8 = convert_fcn(a0)
             elif self._mode == 'uint8':
