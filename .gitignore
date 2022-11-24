@@ -27,3 +27,6 @@ res/
 temp/
 test_*
 /test_data/
+
+# Pip installation files
+*egg-info/
