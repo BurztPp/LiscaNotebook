@@ -15,10 +15,16 @@ from .status import DummyStatus
 
 from ..io import StackdataIO
 from ..roi import ContourRoi
-from ..stack import Stack
+try:
+    from ..stack import Stack
+except ImportError:
+    pass
 from ..stack import metastack as ms
 from ..stack import types as ty
-from ..tracking import Tracker
+try:
+    from ..tracking import Tracker
+except ImportError:
+    pass
 
 class SessionModel:
     #TODO: update this docstring
@@ -344,6 +350,7 @@ class SessionModel:
                                               width=meta.width,
                                               height=meta.height,
                                               mode='uint8',
+                                              n_fovs=meta.n_fovs,
                                              )
             if self.rois:
                 for fr, rois in enumerate(self.rois):
@@ -418,6 +425,7 @@ class SessionModel:
                     roi.color = const.ROI_COLOR_SELECTED if is_selected else const.ROI_COLOR_DESELECTED
                     roi.visible = bool(roi.name) and self.show_contour
                     roi.name_visible = self.show_name
+         
 
     def segmentation_preprocessing(self, img):
         """Preprocessing function for smoothening segmentation

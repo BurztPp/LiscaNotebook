@@ -148,7 +148,7 @@ class StackViewer:
         self.i_frame_var = tk.IntVar()
         self.i_frame_var.trace_add("write", self._i_frame_changed)
         self.i_fov_var = tk.IntVar()
-        self.i_frame_var.trace_add("write", self._i_fov_changed)
+        self.i_fov_var.trace_add("write", self._i_fov_changed)
 
         self.show_rois_var = tk.BooleanVar()
         self.show_rois_var.set(True)
@@ -474,13 +474,20 @@ class StackViewer:
 
             self.n_frames = self.stack.n_frames
             self.n_fovs = self.stack.n_fovs
-            if self.i_frame is None or self.i_frame >= self.n_frames:
+            if self.i_frame is None:
                 #self.i_frame = 0
                 self.i_frame_var.set(1)
+            elif self.i_frame >= self.n_frames:
+                self.i_frame_var.set(1)
+            if self.i_fov is None:
+                self.i_fov_var.set(1) 
+            elif self.i_fov >= self.n_fovs:
+                self.i_fov_var.set(1)
             self.label.config(text=self.stack.path)
         else:
             self.n_channels = None
             self.n_frames = None
+            self.n_fovs = None
             self.label.config(text="")
         self.update_scrollbars()
 
@@ -520,15 +527,13 @@ class StackViewer:
             self.lbl_frame_size.grid(row=ROW_FRAME_CONTROL,
                                      column=COL_SIZES, sticky=tk.W)
         
-        
+        #GUI elements corresponding to field of view (fov)
         if self.n_fovs is None or self.n_fovs == 1:
-            print(f'Just {self.n_fovs} Fov')
             self.scale_fov.grid_forget()
             self.lbl_fov.grid_forget()
-            self.entry_frame.grid_forget()
-            self.lbl_frame_size.grid_forget()
+            self.entry_fov.grid_forget()
+            self.lbl_fov_size.grid_forget()
         else:
-            print(f'{self.n_fovs} fields of view!!')
             self.scale_fov['to'] = self.n_fovs
             self.scale_fov.grid(row=ROW_FOV_CONTROL, column=COL_SCALES,
                                   sticky=tk.W+tk.E)
@@ -544,15 +549,17 @@ class StackViewer:
         self._change_stack_position(force=True)
 
 
-    def _change_stack_position(self, i_channel=None, i_frame=None, i_fov=0, force=False):
+    def _change_stack_position(self, i_channel=None, i_frame=None, i_fov=None, force=False):
         """
         Change the shown image.
 
         :param i_channel: channel to be shown, integer in [0,n_channels)
         :param i_frame: frame to be shown, integer in [0,n_frames)
+        :param i_fov: fov to be shown, integer in [0, n_fovs)
         :param force: if `True`, redraw image even without change
 
-        If i_channel or i_frame is None, it is not changed.
+
+        If i_channel or i_frame or i_fov is None, it is not changed.
         """
         if self.stack is None:
             return
@@ -563,10 +570,14 @@ class StackViewer:
         if i_frame is not None and i_frame != self.i_frame:
             self.i_frame = i_frame
             isChanged = True
+        if i_fov is not None and self.i_fov != i_fov:
+            self.i_fov = i_fov
+            isChanged=True
         if self.i_frame is None or self.i_channel is None:
             return
         if isChanged or self.img is None or force:
             self._show_img()
+       
 
     def _i_channel_changed(self, *_):
         """Callback for channel variable"""
@@ -590,8 +601,7 @@ class StackViewer:
     
     def _i_fov_changed(self, *_):
         i_fov = self.i_fov_var.get() - 1
-        ##This is where i should change the fov
-
+        self._change_stack_position(i_fov=i_fov)
 
     def _i_frame_step(self, direction):
         """Callback for frame Spinbox.
@@ -651,7 +661,7 @@ class StackViewer:
             i_next = max(i_cur - 10, 1)
         else:
             return
-        self.i_fov_var.set(i_next)
+        self.i_fov_var.set(i_next + 1)
 
     def i_fov_jump(self, i_fov):
         """Jump to given frame
@@ -660,9 +670,9 @@ class StackViewer:
         """
         if i_fov == -1:
             i_fov = self.n_fovs - 1
-        if self.i_frame == i_fov:
+        if self.i_fov == i_fov:
             return
-        self.i_frame_var.set(i_fov + 1)
+        self.i_fov_var.set(i_fov + 1)
 
     def toggle_roi_adjustment(self, *_):
         """Callback of ROI adjustment button."""

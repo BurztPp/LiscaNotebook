@@ -40,6 +40,7 @@ class Stack:
             # Load from file (TIFF or numpy array)
             self.load(path, status=status, channels=channels)
         elif arr is not None:
+            print('Array is not none')
             # Use array
             self._path = None
             self._tmpfile = None
@@ -132,7 +133,6 @@ class Stack:
             elif ext.casefold() in ('.nd2'):
                 loader = 'nd2'
             else:
-                print('hi')
                 loader = '' # to prevent error in string comparison
         if loader == 'tiff':
             self._load_tiff(status=status, channels=channels)
@@ -147,6 +147,8 @@ class Stack:
             raise TypeError("Unknown type: {}".format(loader))
 
     def _load_npy(self, ext=None, channels=None, status=None):
+        """Fields of view not implemented yet"""
+        self._n_fovs=1
         if channels is not None:
             #TODO implement channel selection
             raise NotImplementedError("Channel selection for TIFF is not implemented yet")
@@ -200,6 +202,8 @@ class Stack:
                 self._listeners.notify("image")
 
     def _load_tiff(self, status=None, channels=None):
+        """Fields of view currently not implemented"""
+        self._n_fovs=1
         if channels is not None:
             #TODO implement channel selection
             raise NotImplementedError("Channel selection for TIFF is not implemented yet")
@@ -258,6 +262,8 @@ class Stack:
 
     def _load_hdf5(self, status=None, h5_key=None, channels=None):
         """Note: Currently only ilastik HDF5 is supported"""
+        """Fields of view currently not implemented"""
+        self._n_fovs=1
         if status is None:
             status = DummyStatus()
         try:
@@ -374,7 +380,6 @@ class Stack:
 
         finally:
             self._listeners.notify("image")
-        print(self._n_fovs)
 
     def close(self):
         """Close the TIFF file."""

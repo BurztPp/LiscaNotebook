@@ -8,8 +8,10 @@ import skimage.transform as sktrans
 
 from ..listener import Listeners
 from ..roi import RoiCollection
-from .stack import Stack
-
+try:
+    from .stack import Stack
+except ImportError:
+    pass
 
 @dataclass
 class ChannelSpec:
@@ -46,7 +48,6 @@ class MetaStack:
         self._channels = []
         self._n_frames = None
         self._n_fovs = None
-        self._n_fovs=54
         self._width = None
         self._height = None
         self._mode = None
@@ -117,11 +118,9 @@ class MetaStack:
             elif self._n_frames != new_stack.n_frames:
                 raise ValueError("Incompatible stack: expected {} frames, but found {} frames in '{}'.".format(self._n_frames, new_stack.n_frames, name))
             if self._n_fovs is None:
-                print('I am here')
-                print(new_stack)
-                print(new_stack.n_fovs)
-                print(new_stack.n_frames)
                 self._n_fovs = new_stack.n_fovs
+            if self._n_fovs==1 or new_stack.n_fovs==1:
+                self._n_fovs = max(self._n_fovs, new_stack.n_fovs)
             elif self._n_fovs != new_stack.n_fovs:
                 raise ValueError("Incompatible stack: expected {} fovs, but found {} fovs in '{}'.".format(self._n_fovs, new_stack.n_fovs, name))
             if self._width is None:
@@ -149,6 +148,9 @@ class MetaStack:
             self._stacks[name] = new_stack
 
     def add_channel(self, name=None, channel=None, fun=None, label=None, type_=None, scales=None):
+        print(f'adding a channel with name {name} and channel {channel}')
+        if name is None:
+            pass#raise('Errroooor')
         with self.image_lock:
             if name is not None and channel is not None:
                 if name not in self._stacks:
@@ -187,17 +189,15 @@ class MetaStack:
         """Load the stack in TIFF file `path`."""
         #TODO implement progress indicator
         stack = Stack(path)
-        print(stack.n_frames, 'HEREE')
         return stack
 
     def get_image(self, *, channel, frame, fov=0, scale=None):
         """Get a numpy array of a stack position."""
         with self.image_lock:
-            print(self._channels)
+            #print(self._channels)
             spec = self._channels[channel]
             if spec.isVirtual:
-                print('I am virtual')
-                img = spec.fun(self, frame=frame, scale=scale)
+                img = spec.fun(self, frame=frame, fov=fov, scale=scale)
             else:
                 name = spec.name
                 ch = spec.channel
@@ -238,9 +238,9 @@ class MetaStack:
                                  )
         
 
-    def get_image_copy(self, *, channel, frame, scale=None):
+    def get_image_copy(self, *, channel, frame, fov=0, scale=None):
         """Get a copy of a numpy array of a stack position."""
-        return self.get_image(channel=channel, frame=frame, fov=0, scale=scale).copy()
+        return self.get_image(channel=channel, frame=frame, fov=fov, scale=scale).copy()
 
 
     def get_frame_tk(self, *, channel, frame, fov=0, convert_fcn=None):
@@ -422,7 +422,6 @@ class MetaStack:
     @property
     def n_fovs(self):
         with self.image_lock:
-            print(self._n_fovs)
             return self._n_fovs
 
     @property

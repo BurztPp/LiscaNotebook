@@ -584,9 +584,9 @@ class SessionView_Tk(SessionView):
         stack -- metastack of session instance
         render_segmentation -- function for rendering binary segmentation image
         """
-        def render_display(meta, frame, scale=None):
+        def render_display(meta, frame, fov, scale=None):
             """Dynamically create display image.
-
+            
             This method is to be called by `MetaStack.get_image`
             within the GUI thread.
 
@@ -620,7 +620,7 @@ class SessionView_Tk(SessionView):
             imgs = []
             seg_img = None
             for i in channels:
-                img = stack.get_image(channel=i, frame=frame, scale=scale)
+                img = stack.get_image(channel=i, frame=frame, fov=fov, scale=scale)
                 if stack.spec(i).type != ty.TYPE_SEGMENTATION:
                     if self.var_darken_deselected.get():
                         # Darken deselected and untracked cells
