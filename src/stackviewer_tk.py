@@ -22,12 +22,12 @@ ROW_HEADER = 0
 ROW_CANVAS = 1
 ROW_CHANNEL_CONTROL = 2
 ROW_FRAME_CONTROL = 3
+ROW_FOV_CONTROL = 4
 COL_LABELS = 0
 COL_ENTRIES = 1
 COL_SIZES = 2
 COL_SCALES = 3
 COLSPAN_CANVAS = 4
-
 TAG_IMAGE = 'image'
 TAG_ROI = 'roi'
 TAG_ROI_NAME = 'roi_name'
@@ -134,6 +134,8 @@ class StackViewer:
         # Stack properties
         self.stack = None
         self.n_channels = None
+        self.n_fovs = None
+        self.i_fov = None
         self.n_frames = None
         self.i_channel = None
         self.i_frame = None
@@ -145,6 +147,8 @@ class StackViewer:
         self.i_channel_var.trace_add("write", self._i_channel_changed)
         self.i_frame_var = tk.IntVar()
         self.i_frame_var.trace_add("write", self._i_frame_changed)
+        self.i_fov_var = tk.IntVar()
+        self.i_frame_var.trace_add("write", self._i_fov_changed)
 
         self.show_rois_var = tk.BooleanVar()
         self.show_rois_var.set(True)
@@ -187,8 +191,10 @@ class StackViewer:
         self.frame_canvas = ttk.Frame(self.mainframe)
         self.frame_canvas.grid(row=ROW_CANVAS, column=0,
                                columnspan=COLSPAN_CANVAS)
+
         self.frame_canvas.columnconfigure(0, weight=1)
         self.frame_canvas.rowconfigure(0, weight=1)
+     
 
         self.canvas = tk.Canvas(self.frame_canvas,
                                 width=100, height=100,
@@ -254,6 +260,30 @@ class StackViewer:
                                      )
         self.entry_frame.config(command=(self.entry_frame.register(self._i_frame_step), '%d'))
         self.lbl_frame_size = ttk.Label(self.mainframe, anchor=tk.W)
+
+        #Fov control elements
+        self.scale_fov = tk.Scale(
+                                    self.mainframe,
+                                    variable=self.i_fov_var,
+                                    orient=tk.HORIZONTAL,
+                                    showvalue=False,
+                                    from_=1,
+                                    resolution=1,
+                                   )
+        self.lbl_fov = ttk.Label(self.mainframe, text="Fov:",
+            anchor=tk.W)
+        self.entry_fov = tk.Spinbox(
+                                      self.mainframe,
+                                      exportselection=False,
+                                      width=3,
+                                      from_=0,
+                                      increment=1,
+                                      textvariable=self.i_fov_var,
+                                      justify=tk.RIGHT
+                                     )
+        self.entry_fov.config(command=(self.entry_fov.register(self._i_fov_step), '%d'))
+        self.lbl_fov_size = ttk.Label(self.mainframe, anchor=tk.W)
+
 
         # Start listening to external events
         self.root.after(40, self._update)
@@ -363,7 +393,7 @@ class StackViewer:
         if fn is None:
             self.open_button.configure(state=tk.DISABLED)
             fn = tkfdlg.askopenfilename(title="Choose stack file",
-                filetypes=(("TIFF", ("*.tif","*.tiff")),("All files", "*.*")))
+                filetypes=(("TIFF", ("*.tif","*.tiff")),("nd2", "*.nd2"),("All files", "*.*")))
             self.open_button.configure(state=tk.NORMAL)
 
         if not os.path.isfile(fn):
@@ -406,6 +436,7 @@ class StackViewer:
 
         self.img = self.stack.get_frame_tk(channel=self.i_channel,
                                            frame=self.i_frame,
+                                           fov=self.i_fov,
                                            convert_fcn=convert_fcn)
         new_shape = np.array(((self.img.height(), self.img.width()),))
         if self.img_shape is None or \
@@ -442,6 +473,7 @@ class StackViewer:
                 self.i_channel_var.set(1)
 
             self.n_frames = self.stack.n_frames
+            self.n_fovs = self.stack.n_fovs
             if self.i_frame is None or self.i_frame >= self.n_frames:
                 #self.i_frame = 0
                 self.i_frame_var.set(1)
@@ -487,12 +519,32 @@ class StackViewer:
                                   sticky=tk.W)
             self.lbl_frame_size.grid(row=ROW_FRAME_CONTROL,
                                      column=COL_SIZES, sticky=tk.W)
+        
+        
+        if self.n_fovs is None or self.n_fovs == 1:
+            print(f'Just {self.n_fovs} Fov')
+            self.scale_fov.grid_forget()
+            self.lbl_fov.grid_forget()
+            self.entry_frame.grid_forget()
+            self.lbl_frame_size.grid_forget()
+        else:
+            print(f'{self.n_fovs} fields of view!!')
+            self.scale_fov['to'] = self.n_fovs
+            self.scale_fov.grid(row=ROW_FOV_CONTROL, column=COL_SCALES,
+                                  sticky=tk.W+tk.E)
+            self.lbl_fov.grid(row=ROW_FOV_CONTROL, column=COL_LABELS,
+                                sticky=tk.W)
+            self.lbl_fov_size['text'] = "/{:d}".format(self.n_fovs)
+            self.entry_fov.grid(row=ROW_FOV_CONTROL, column=COL_ENTRIES,
+                                  sticky=tk.W)
+            self.lbl_fov_size.grid(row=ROW_FOV_CONTROL,
+                                     column=COL_SIZES, sticky=tk.W)
 
         # Update stack
         self._change_stack_position(force=True)
 
 
-    def _change_stack_position(self, i_channel=None, i_frame=None, force=False):
+    def _change_stack_position(self, i_channel=None, i_frame=None, i_fov=0, force=False):
         """
         Change the shown image.
 
@@ -535,6 +587,11 @@ class StackViewer:
         """Callback for frame variable"""
         i_frame = self.i_frame_var.get() - 1
         self._change_stack_position(i_frame=i_frame)
+    
+    def _i_fov_changed(self, *_):
+        i_fov = self.i_fov_var.get() - 1
+        ##This is where i should change the fov
+
 
     def _i_frame_step(self, direction):
         """Callback for frame Spinbox.
@@ -570,6 +627,42 @@ class StackViewer:
         if self.i_frame == i_frame:
             return
         self.i_frame_var.set(i_frame + 1)
+
+    def _i_fov_step(self, direction):
+    
+        """Callback for frame Spinbox.
+
+        Possible values for `direction` are:
+            'up' -- go to next frame
+            'down' -- go to previous frame
+            'up10' -- jump 10 frames forward
+            'down10' -- jump 10 frames backward
+        """
+        if not self.n_fovs:
+            return
+        i_cur = self.i_fov + 1
+        if direction == 'up' and i_cur < self.n_fovs:
+            i_next = i_cur + 1
+        elif direction == 'up10' and i_cur < self.n_fovs:
+            i_next = min(i_cur + 10, self.n_fovs)
+        elif direction == 'down' and i_cur > 1:
+            i_next = i_cur - 1
+        elif direction == 'down10' and i_cur > 1:
+            i_next = max(i_cur - 10, 1)
+        else:
+            return
+        self.i_fov_var.set(i_next)
+
+    def i_fov_jump(self, i_fov):
+        """Jump to given frame
+
+        `i_frame` -- zero-based frame index (-1 for last frame)
+        """
+        if i_fov == -1:
+            i_fov = self.n_fovs - 1
+        if self.i_frame == i_fov:
+            return
+        self.i_frame_var.set(i_fov + 1)
 
     def toggle_roi_adjustment(self, *_):
         """Callback of ROI adjustment button."""

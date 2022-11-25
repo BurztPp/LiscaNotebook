@@ -355,10 +355,15 @@ class Stack:
             dtype = nd2.get_frame_2D().dtype
             self._mode = self.dtype_str(dtype)
             self._n_channels = nd2.sizes['c']
+            self._channel_labels = nd2.metadata['channels']
             if not 't' in nd2.sizes:
                 self._n_frames = 1
             else:
                 self._n_frames = nd2.sizes['t']
+            if not 'v' in nd2.sizes:
+                self._n_fovs = 1
+            else:
+                self._n_fovs = nd2.sizes['v']
             
             self._n_images = self._n_frames * self._n_channels
 
@@ -369,6 +374,7 @@ class Stack:
 
         finally:
             self._listeners.notify("image")
+        print(self._n_fovs)
 
     def close(self):
         """Close the TIFF file."""
@@ -512,23 +518,23 @@ class Stack:
             else:
                 raise NotImplementedError(f"Dimension order '{self._order}' not implemented yet.")
 
-    def get_image(self, channel, frame):
+    def get_image(self, channel, frame, fov=0):
         """Get a numpy array of a stack position."""
         with self.image_lock:
             if self._stacktype=='nd2':
-                return self.nd2.get_frame_2D(c=channel, v=0, t=frame)
+                return self.nd2.get_frame_2D(c=channel, t=frame, v=fov)
             else:
                 return self.img[channel, frame, :, :]
 
-    def get_image_copy(self, channel, frame):
+    def get_image_copy(self, channel, frame, fov=0):
         """Get a copy of a numpy array of a stack position."""
         with self.image_lock:
             if self._stacktype=='nd2':
-                return self.nd2.get_frame_2D(c=channel, v=0, t=frame)
+                return self.nd2.get_frame_2D(c=channel, t=frame, v=fov)
             else:
                 return self.img[channel, frame, :, :].copy()
 
-    def get_frame_tk(self, channel, frame, convert_fcn=None):
+    def get_frame_tk(self, channel, frame, convert_fcn=None, fov=0):
         """
         Get a frame of the stack as :py:class:`tkinter.PhotoImage`.
 
@@ -549,7 +555,7 @@ class Stack:
         :rtype: :py:class:`tkinter.PhotoImage`
         """
         with self.image_lock:
-            a0 = self.get_image(channel=channel, frame=frame)
+            a0 = self.get_image(channel=channel, frame=frame, fov=fov)
             print('HEREE \n')
             print(a0.shape, self._mode)
             if convert_fcn:
@@ -722,6 +728,10 @@ class Stack:
     def n_frames(self):
         with self.image_lock:
             return self._n_frames
+    
+    @property
+    def n_fovs(self):
+        return self._n_fovs
 
     @property
     def stacktype(self):

@@ -45,6 +45,8 @@ class MetaStack:
         self._stacks = {}
         self._channels = []
         self._n_frames = None
+        self._n_fovs = None
+        self._n_fovs=54
         self._width = None
         self._height = None
         self._mode = None
@@ -59,6 +61,7 @@ class MetaStack:
             self._stacks = {}
             self._channels = []
             self._n_frames = None
+            self._n_fovs = None
             self._width = None
             self._height = None
             self._mode = None
@@ -69,7 +72,7 @@ class MetaStack:
         # Notify listeners
         self._listeners.notify(kind=None)
 
-    def set_properties(self, n_frames=None, width=None, height=None, mode=None):
+    def set_properties(self, n_frames=None, width=None, n_fovs=None, height=None, mode=None):
         """Set image properties, overwriting current properties"""
         with self.image_lock:
             if n_frames is not None:
@@ -78,13 +81,15 @@ class MetaStack:
                 self._width = width
             if height is not None:
                 self._height = height
+            if n_fovs is not None:
+                self._n_fovs = n_fovs
             if mode is not None:
                 self._mode = Stack.dtype_str(mode)
         self._listeners.notify('image')
 
     def check_properties(self):
         """Check whether properties are set"""
-        return None not in (self._n_frames, self._width, self._height)
+        return None not in (self._n_frames, self._width, self._height, self._n_fovs)
 
     def add_stack(self, new_stack, name=None, overwrite=False):
         """Insert a new stack
@@ -111,6 +116,14 @@ class MetaStack:
                 self._n_frames = new_stack.n_frames
             elif self._n_frames != new_stack.n_frames:
                 raise ValueError("Incompatible stack: expected {} frames, but found {} frames in '{}'.".format(self._n_frames, new_stack.n_frames, name))
+            if self._n_fovs is None:
+                print('I am here')
+                print(new_stack)
+                print(new_stack.n_fovs)
+                print(new_stack.n_frames)
+                self._n_fovs = new_stack.n_fovs
+            elif self._n_fovs != new_stack.n_fovs:
+                raise ValueError("Incompatible stack: expected {} fovs, but found {} fovs in '{}'.".format(self._n_fovs, new_stack.n_fovs, name))
             if self._width is None:
                 self._width = new_stack.width
             elif self._width != new_stack.width:
@@ -174,18 +187,21 @@ class MetaStack:
         """Load the stack in TIFF file `path`."""
         #TODO implement progress indicator
         stack = Stack(path)
+        print(stack.n_frames, 'HEREE')
         return stack
 
-    def get_image(self, *, channel, frame, scale=None):
+    def get_image(self, *, channel, frame, fov=0, scale=None):
         """Get a numpy array of a stack position."""
         with self.image_lock:
+            print(self._channels)
             spec = self._channels[channel]
             if spec.isVirtual:
+                print('I am virtual')
                 img = spec.fun(self, frame=frame, scale=scale)
             else:
                 name = spec.name
                 ch = spec.channel
-                img = self._stacks[name].get_image(channel=ch, frame=frame)
+                img = self._stacks[name].get_image(channel=ch, frame=frame, fov=fov)
             if scale is not None and not spec.scales:
                 img = self.scale_img(img, scale)
             return img
@@ -224,10 +240,10 @@ class MetaStack:
 
     def get_image_copy(self, *, channel, frame, scale=None):
         """Get a copy of a numpy array of a stack position."""
-        return self.get_image(channel=channel, frame=frame, scale=scale).copy()
+        return self.get_image(channel=channel, frame=frame, fov=0, scale=scale).copy()
 
 
-    def get_frame_tk(self, *, channel, frame, convert_fcn=None):
+    def get_frame_tk(self, *, channel, frame, fov=0, convert_fcn=None):
         """
         Get a frame of the stack as :py:class:`tkinter.PhotoImage`.
 
@@ -249,7 +265,7 @@ class MetaStack:
         """
         #TODO
         with self.image_lock:
-            a0 = self.get_image(channel=channel, frame=frame)
+            a0 = self.get_image(channel=channel, frame=frame, fov=fov)
             if convert_fcn:
                 a8 = convert_fcn(a0)
             elif self._mode == 'uint8':
@@ -388,7 +404,7 @@ class MetaStack:
             if not self._channels:
                 return None
             else:
-                return len(self._channels) * self._n_frames
+                return len(self._channels) * self._n_frames ##*self._n_fovs
 
     @property
     def n_channels(self):
@@ -402,6 +418,12 @@ class MetaStack:
     def n_frames(self):
         with self.image_lock:
             return self._n_frames
+    
+    @property
+    def n_fovs(self):
+        with self.image_lock:
+            print(self._n_fovs)
+            return self._n_fovs
 
     @property
     def stacks(self):
