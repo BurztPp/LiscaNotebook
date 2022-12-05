@@ -2,6 +2,14 @@
 PyAMA is a desktop application for displaying TIFF stacks of single-cell microscopy images
 and for reading out single-cell time courses of the cell area and the fluorescence intensity.
 
+## For developers
+Clone pyama to wherever directory you like
+add the following code to use your own version:
+`import sys`
+`sys.path.insert(0, 'directory')`
+replacing directory with the path to your own directory
+
+
 ### Installation
 Python 3.8 with `tkinter` is required.
 
